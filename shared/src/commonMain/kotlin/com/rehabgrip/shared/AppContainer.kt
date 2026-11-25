@@ -40,6 +40,7 @@ interface PlatformServices {
     val reminderScheduler: ReminderScheduler
     val isDebug: Boolean
     fun realForceSource(): ForceSource
+    fun advertisementScanner(): com.rehabgrip.core.ble.AdvertisementScanner
     suspend fun ensureBluetoothPermission(): Boolean
 }
 

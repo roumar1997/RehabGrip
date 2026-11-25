@@ -93,6 +93,8 @@ class MainActivity : ComponentActivity() {
         override val reminderScheduler: ReminderScheduler =
             AndroidReminderScheduler(appContext) { currentActivity?.requestNotificationPermission() ?: false }
         override fun realForceSource(): ForceSource = AndroidCraneForceSource(appContext)
+        override fun advertisementScanner(): com.rehabgrip.core.ble.AdvertisementScanner =
+            com.rehabgrip.core.ble.AndroidAdvertisementScanner(appContext)
         override suspend fun ensureBluetoothPermission(): Boolean = currentActivity?.requestBlePermission() ?: false
     }
 

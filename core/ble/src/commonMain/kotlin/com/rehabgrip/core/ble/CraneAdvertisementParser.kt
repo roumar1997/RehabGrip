@@ -31,6 +31,17 @@ object CraneAdvertisementParser {
         return ScaleReading(kg = kg, stable = stable)
     }
 
+    /**
+     * Accepts both formats: with the 2 company-ID bytes in front (iOS style, 0x0100
+     * little-endian = 00 01) and the bare payload (Android style).
+     */
+    fun parseAny(data: ByteArray): ScaleReading? {
+        if (data.size >= 2 && data[0].toInt() == 0x00 && data[1].toInt() == 0x01) {
+            parse(data.copyOfRange(2, data.size))?.let { return it }
+        }
+        return parse(data)
+    }
+
     /** Splits iOS-style manufacturer data (company ID little-endian in the first 2 bytes). */
     fun stripCompanyId(fullManufacturerData: ByteArray): ByteArray? {
         if (fullManufacturerData.size < 2) return null

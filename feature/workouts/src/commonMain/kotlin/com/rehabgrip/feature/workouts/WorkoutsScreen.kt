@@ -59,6 +59,7 @@ fun WorkoutsScreen(
     missingBases: (WorkoutTemplate) -> List<MissingBase>,
     onEvaluateGrips: () -> Unit,
     onEvaluate: (GripSpec) -> Unit,
+    onMeter: () -> Unit = {},
 ) {
     var asking by remember { mutableStateOf<Pair<WorkoutTemplate, List<MissingBase>>?>(null) }
     Column(Modifier.fillMaxSize()) {
@@ -80,6 +81,7 @@ fun WorkoutsScreen(
                     Icons.Rounded.Speed,
                 )
                 RgSecondaryButton("Evaluar agarre", onEvaluateGrips, Modifier.padding(top = 8.dp), icon = Icons.Rounded.Speed)
+                RgSecondaryButton("Medir (sin entreno)", onMeter, Modifier.padding(top = 8.dp), icon = Icons.Rounded.Speed)
             }
             items(templates, key = { it.id }) { t ->
                 RgCard(Modifier.fillMaxWidth(), onClick = { onEdit(t) }, padding = PaddingValues(start = 16.dp, top = 12.dp, bottom = 12.dp, end = 8.dp)) {

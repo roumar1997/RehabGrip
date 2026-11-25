@@ -19,6 +19,7 @@ private class IosPlatform : PlatformServices {
     override val driverFactory = DriverFactory()
     override val isDebug: Boolean = kotlin.native.Platform.isDebugBinary
     override fun realForceSource(): ForceSource = IosCraneForceSource()
+    override fun advertisementScanner(): com.rehabgrip.core.ble.AdvertisementScanner = com.rehabgrip.core.ble.IosAdvertisementScanner()
     override val cuePlayer: com.rehabgrip.core.domain.port.CuePlayer = IosCuePlayer()
     override val reminderScheduler: com.rehabgrip.core.domain.port.ReminderScheduler = IosReminderScheduler()
 

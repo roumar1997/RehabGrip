@@ -34,17 +34,22 @@ import com.rehabgrip.core.domain.workout.WorkoutTemplate
 
 /** Live data from the repositories, collected once for all screens. */
 internal data class AppData(
-    val measurements: List<Measurement>,
+    /** Everything stored, friends included. Use [measurements] for the user's own. */
+    val allMeasurements: List<Measurement>,
     val simulated: Boolean,
     val workouts: List<WorkoutTemplate>,
     val grips: List<GripSpec>,
     val gripEvaluations: List<GripEvaluation>,
     val workoutResults: List<WorkoutResultEntry>,
 ) {
+    val measurements: List<Measurement> = allMeasurements.filter { it.isMine }
+
     /** Evaluated max of a hand for a grip (falls back to old records of the predefined grips). */
     fun record(hand: Hand, grip: Grip): GripRecord? = GripRecords.record(gripEvaluations, measurements, grip, grips, hand)
 
     val recentZones: List<String> get() = DiscomfortCalculator().recentZones(measurements)
+
+    val recentPeople: List<String> get() = com.rehabgrip.core.domain.grip.MaxRecords.recentPeople(allMeasurements)
 }
 
 @Composable

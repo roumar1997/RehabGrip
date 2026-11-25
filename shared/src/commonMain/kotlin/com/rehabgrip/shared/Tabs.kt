@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import com.rehabgrip.core.domain.grip.GripRecords
+import com.rehabgrip.core.domain.grip.MaxRecords
 import com.rehabgrip.core.domain.model.Exercise
 import com.rehabgrip.core.domain.progress.ProgressCalculator
 import com.rehabgrip.core.domain.progress.ProgressRange
@@ -29,6 +30,7 @@ internal fun TabContent(tab: Tab, container: AppContainer, navigator: Navigator,
             onExercise = { navigator.push(Route.Training(it)) },
             grips = data.grips,
             onGrip = { navigator.push(Route.GripEvaluate(it)) },
+            onMeter = { scope.launch { if (data.simulated || container.platform.ensureBluetoothPermission()) navigator.push(Route.Meter) } },
         )
         Tab.PROGRESS -> ProgressScreen(data.measurements, container.now(), session.injury, data.grips)
         Tab.WORKOUTS -> WorkoutsScreen(
@@ -40,6 +42,7 @@ internal fun TabContent(tab: Tab, container: AppContainer, navigator: Navigator,
             missingBases = { t -> GripRecords.missingBases(t) { hand, grip -> data.record(hand, grip)?.kg } },
             onEvaluateGrips = { navigator.push(Route.GripLibrary) },
             onEvaluate = { navigator.push(Route.GripEvaluate(it)) },
+            onMeter = { scope.launch { if (data.simulated || container.platform.ensureBluetoothPermission()) navigator.push(Route.Meter) } },
             onPlay = { t ->
                 scope.launch {
                     if (data.simulated || container.platform.ensureBluetoothPermission()) navigator.push(Route.WorkoutRun(t))
@@ -72,7 +75,8 @@ private fun ProfileTab(container: AppContainer, navigator: Navigator, session: A
             simulatedScale = data.simulated,
             showDeveloperOptions = container.platform.isDebug,
             injury = session.injury,
-            gripRows = GripRecords.rows(data.gripEvaluations, data.measurements, data.grips),
+            maxRows = MaxRecords.mine(data.allMeasurements, data.grips),
+            friends = MaxRecords.friends(data.allMeasurements, data.grips),
         ),
         onRename = { scope.launch { container.settings.save(com.rehabgrip.core.domain.model.UserProfile(it)) } },
         onSimulatedScale = { scope.launch { container.settings.setFlag(SIM_KEY, it) } },
@@ -81,6 +85,7 @@ private fun ProfileTab(container: AppContainer, navigator: Navigator, session: A
         onReminders = { navigator.push(Route.Reminders) },
         onGrips = { navigator.push(Route.GripLibrary) },
         onEvaluate = { navigator.push(Route.GripEvaluate(it)) },
+        onDiagnostics = { navigator.push(Route.Diagnostics) },
     )
 }
 

@@ -56,8 +56,8 @@ class IosCraneForceSource : ForceSource {
             }
         },
         onManufacturerData = { bytes ->
-            val payload = CraneAdvertisementParser.stripCompanyId(bytes)
-            val reading = payload?.let(CraneAdvertisementParser::parse)
+            // Any manufacturer data, with or without the company-ID bytes; no name or service filter.
+            val reading = CraneAdvertisementParser.parseAny(bytes)
             if (reading != null) {
                 lastPacketAt = now()
                 _status.value = ScaleStatus.RECEIVING

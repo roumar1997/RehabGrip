@@ -1,5 +1,6 @@
 package com.rehabgrip.feature.exercises
 
+import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -52,6 +53,7 @@ fun ExercisesScreen(
     onExercise: (Exercise) -> Unit,
     grips: List<GripSpec> = emptyList(),
     onGrip: (GripSpec) -> Unit = {},
+    onMeter: () -> Unit = {},
 ) {
     Column(Modifier.fillMaxSize()) {
         RgTopBar("Mis ejercicios")
@@ -64,6 +66,11 @@ fun ExercisesScreen(
                     "Hola, $userName",
                     style = MaterialTheme.typography.headlineSmall,
                     color = RgColors.Navy,
+                )
+            }
+            item {
+                com.rehabgrip.core.designsystem.components.RgPrimaryButton(
+                    "Medir ahora", onMeter, icon = androidx.compose.material.icons.Icons.Rounded.Speed, subtitle = "Prueba la báscula sin entreno",
                 )
             }
             if (measurements.isNotEmpty()) {

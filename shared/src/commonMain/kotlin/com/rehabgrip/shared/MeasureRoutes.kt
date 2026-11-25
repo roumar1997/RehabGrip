@@ -1,5 +1,6 @@
 package com.rehabgrip.shared
 
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
@@ -13,6 +14,7 @@ import com.rehabgrip.core.domain.model.MeasurementSource
 import com.rehabgrip.feature.exercises.TrainingScreen
 import com.rehabgrip.feature.measure.LiveMeasurementPresenter
 import com.rehabgrip.feature.measure.LiveMeasurementScreen
+import com.rehabgrip.feature.measure.MeterScreen
 import com.rehabgrip.feature.measure.SaveSessionScreen
 import com.rehabgrip.feature.measure.SavedScreen
 import kotlinx.coroutines.launch
@@ -46,6 +48,8 @@ internal fun MeasureRoutes(route: Route, container: AppContainer, navigator: Nav
             recentZones = data.recentZones,
         )
         is Route.Live -> LiveRoute(route, container, navigator, data.simulated)
+        is Route.Meter -> MeterRoute(container, navigator, data)
+        is Route.Diagnostics -> DiagnosticsRoute(container, navigator)
         is Route.SaveSession -> SaveSessionScreen(
             exercise = route.exercise,
             hand = route.hand,
@@ -88,4 +92,45 @@ private fun LiveRoute(route: Route.Live, container: AppContainer, navigator: Nav
             navigator.push(Route.SaveSession(route.exercise, route.hand, state.attempts, state.peak?.kg ?: 0.0))
         },
     )
+}
+
+@Composable
+private fun MeterRoute(container: AppContainer, navigator: Navigator, data: AppData) {
+    val scope = rememberCoroutineScope()
+    val presenter = remember { LiveMeasurementPresenter(container.forceSource(data.simulated), scope) }
+    DisposableEffect(presenter) {
+        presenter.start()
+        onDispose { presenter.dispose() }
+    }
+    val state by presenter.state.collectAsState()
+    MeterScreen(
+        state = state,
+        trace = presenter.trace,
+        grips = data.grips,
+        recentPeople = data.recentPeople,
+        onBack = { navigator.pop() },
+        onResetMax = presenter::resetMax,
+        onSave = { s ->
+            scope.launch {
+                container.saveMeasurement(
+                    s.grip?.builtIn ?: if (s.grip == null) Exercise.DYNAMOMETER else Exercise.CUSTOM,
+                    s.hand, s.kg, MeasurementSource.SCALE, container.now(),
+                    note = "Medidor", gripId = s.grip?.id, person = s.person,
+                )
+                presenter.resetMax()
+            }
+        },
+    )
+}
+
+@Composable
+private fun DiagnosticsRoute(container: AppContainer, navigator: Navigator) {
+    val scope = rememberCoroutineScope()
+    val scanner = remember { container.platform.advertisementScanner() }
+    var allowed by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+    androidx.compose.runtime.LaunchedEffect(Unit) { allowed = container.platform.ensureBluetoothPermission() }
+    DisposableEffect(scanner) { onDispose { scanner.stop() } }
+    if (allowed) com.rehabgrip.feature.measure.DiagnosticsScreen(scanner) { navigator.pop() } else {
+        com.rehabgrip.core.designsystem.components.RgTopBar("Diagnóstico Bluetooth", onBack = { navigator.pop() })
+    }
 }

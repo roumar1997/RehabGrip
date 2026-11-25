@@ -59,7 +59,8 @@ import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.runtime.remember
 import com.rehabgrip.core.designsystem.components.InjuryForm
 import com.rehabgrip.core.domain.model.Injury
-import com.rehabgrip.core.domain.grip.GripRecordRow
+import com.rehabgrip.core.domain.grip.FriendMaxes
+import com.rehabgrip.core.domain.grip.MaxRow
 import com.rehabgrip.core.domain.workout.GripSpec
 
 data class ProfileUiState(
@@ -72,7 +73,9 @@ data class ProfileUiState(
     val showDeveloperOptions: Boolean,
     val injury: Injury = Injury.NONE,
     /** Each grip of the library with the evaluated max of every hand. */
-    val gripRows: List<GripRecordRow> = emptyList(),
+    val maxRows: List<MaxRow> = emptyList(),
+    /** Other people's records, kept apart from mine. */
+    val friends: List<FriendMaxes> = emptyList(),
 )
 
 /** "Perfil y configuración". */
@@ -86,6 +89,7 @@ fun ProfileScreen(
     onReminders: () -> Unit = {},
     onGrips: () -> Unit = {},
     onEvaluate: (GripSpec) -> Unit = {},
+    onDiagnostics: () -> Unit = {},
 ) {
     var dialog by rememberSaveable { mutableStateOf<String?>(null) }
     Column(Modifier.fillMaxSize()) {
@@ -123,12 +127,15 @@ fun ProfileScreen(
                 }
             }
             GripRecordsCard(state, onGrips, onEvaluate)
+            FriendRecordsCard(state)
             RgCard(Modifier.fillMaxWidth(), padding = PaddingValues(horizontal = 16.dp, vertical = 4.dp)) {
                 Option(Icons.Rounded.Badge, "Cambiar nombre") { dialog = DIALOG_NAME }
                 HorizontalDivider(color = RgColors.Outline)
                 Option(Icons.Rounded.Healing, "Mano y dedos lesionados") { dialog = DIALOG_INJURY }
                 HorizontalDivider(color = RgColors.Outline)
                 Option(Icons.Rounded.Notifications, "Recordatorios", onReminders)
+                HorizontalDivider(color = RgColors.Outline)
+                Option(Icons.Rounded.Bluetooth, "Báscula · diagnóstico Bluetooth", onDiagnostics)
                 HorizontalDivider(color = RgColors.Outline)
                 Option(Icons.Rounded.Lightbulb, "Información y consejos") { dialog = DIALOG_TIPS }
                 HorizontalDivider(color = RgColors.Outline)

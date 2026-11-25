@@ -74,7 +74,7 @@ private fun MainContent(container: AppContainer, navigator: Navigator, session: 
             Box(Modifier.weight(1f)) { TabContent(route.tab, container, navigator, session, data) }
             BottomBar(route.tab, navigator::selectTab)
         }
-        is Route.Training, is Route.Live, is Route.SaveSession, is Route.Saved ->
+        is Route.Training, is Route.Live, is Route.SaveSession, is Route.Saved, is Route.Meter, is Route.Diagnostics ->
             MeasureRoutes(route, container, navigator, session, data)
         is Route.GripLibrary, is Route.GripEvaluate -> GripRoutes(route, container, navigator, session, data)
         is Route.Reminders, is Route.WorkoutEditor, is Route.WorkoutRun, is Route.WorkoutSummary ->

@@ -25,6 +25,8 @@ sealed interface Route {
         val discomforts: List<Discomfort> = emptyList(),
     ) : Route
     data object Reminders : Route
+    data object Meter : Route
+    data object Diagnostics : Route
     data object GripLibrary : Route
     data class GripEvaluate(val grip: GripSpec) : Route
     data class WorkoutEditor(val template: WorkoutTemplate) : Route
