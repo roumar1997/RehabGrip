@@ -107,6 +107,7 @@ fun WorkoutEditorScreen(
             set = rows[idx].set,
             library = library,
             injury = injury,
+            hands = handsOf(handMode, firstHand),
             recordOf = recordOf,
             onBack = { configRow = null },
             onChange = { rows[idx] = RowItem(id, it) },
@@ -128,13 +129,7 @@ fun WorkoutEditorScreen(
                 name, { name = it.take(40) }, label = { Text("Nombre") }, singleLine = true,
                 shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth(),
             )
-            RgSegmented(HandMode.entries, handMode, { WorkoutLabels.handMode(it) }, { handMode = it })
-            Text(WorkoutLabels.handModeHelp(handMode), style = MaterialTheme.typography.bodySmall, color = RgColors.TextSecondary)
-            RgSegmented(
-                Hand.entries, firstHand,
-                { if (handMode == HandMode.SINGLE) "Mano ${Labels.hand(it).lowercase()}" else "Empieza ${Labels.hand(it).lowercase()}" },
-                { firstHand = it },
-            )
+            SessionSettings(handMode, firstHand) { m, f -> handMode = m; firstHand = f }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 ToolButton(if (selecting) "Cancelar" else "Edición masiva", Icons.Rounded.EditNote, selecting) {
                     selecting = !selecting
@@ -307,3 +302,7 @@ private fun SetsTable(
 @Composable
 private fun RowScope.Cell(text: String) =
     Text(text, style = MaterialTheme.typography.titleMedium, color = RgColors.Navy, textAlign = TextAlign.Center, modifier = Modifier.weight(1f))
+
+/** Hands of a session, left first (the order of the setting blocks). */
+internal fun handsOf(mode: HandMode, first: Hand): List<Hand> =
+    if (mode == HandMode.SINGLE) listOf(first) else listOf(Hand.LEFT, Hand.RIGHT)

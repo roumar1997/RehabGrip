@@ -65,6 +65,8 @@ internal fun SetConfigScreen(
     set: WorkoutSet,
     library: List<GripSpec>,
     injury: Injury,
+    /** Hands taking part, left block first. */
+    hands: List<Hand>,
     recordOf: (Grip, Hand) -> GripRecord?,
     onBack: () -> Unit,
     onChange: (WorkoutSet) -> Unit,
@@ -92,7 +94,7 @@ internal fun SetConfigScreen(
                     Help(current.summary)
                     val grip = Grip.Library(current)
                     GripRecordsLines(recordOf(grip, Hand.RIGHT), recordOf(grip, Hand.LEFT), injury)
-                    val needsBase = set.target is SetTarget.PercentOfRecord && Hand.entries.any { recordOf(grip, it) == null }
+                    val needsBase = hands.any { set.targetFor(it) is SetTarget.PercentOfRecord && recordOf(grip, it) == null }
                     if (needsBase) {
                         Text(
                             "El objetivo usa el registro de este agarre y falta evaluarlo: sin él no hay zona.",
@@ -102,14 +104,7 @@ internal fun SetConfigScreen(
                     TextButton(onClick = { onEvaluate(current) }) { Text(if (needsBase) "Evaluar agarre ahora" else "Evaluar de nuevo") }
                 }
             }
-            Section("Mano de esta serie") {
-                RgSegmented(SetHand.entries, set.hand, { WorkoutLabels.setHand(it) }, { onChange(set.copy(hand = it)) })
-            }
-            TargetSection(set, onChange)
-            Section("Hasta el fallo") {
-                RgSegmented(ToFailure.entries, set.toFailure, { WorkoutLabels.failure(it) }, { onChange(set.copy(toFailure = it)) })
-                Help(WorkoutLabels.failureHelp(set.toFailure))
-            }
+            hands.forEach { HandBlock(it, set, onChange) }
             Section("Inicio de la repetición") {
                 RgSegmented(StartMode.entries, set.startMode, { WorkoutLabels.start(it) }, { onChange(set.copy(startMode = it)) })
                 Help(WorkoutLabels.startHelp(set.startMode))
@@ -137,45 +132,47 @@ internal fun SetConfigScreen(
     }
 }
 
+/** «Mano izquierda» / «Mano derecha»: objetivo and «hasta el fallo» of that hand. */
 @Composable
-private fun TargetSection(set: WorkoutSet, onChange: (WorkoutSet) -> Unit) {
-    val t = set.target
-    Section("Objetivo") {
-        RgSegmented(listOf(false, true), t != SetTarget.Peak, { if (it) "Zona" else "Máximo (Peak)" }, { zone ->
-            onChange(set.copy(target = if (zone) SetTarget.Kg(15.0, 25.0) else SetTarget.Peak))
+private fun HandBlock(hand: Hand, set: WorkoutSet, onChange: (WorkoutSet) -> Unit) {
+    val t = set.targetFor(hand)
+    val failure = set.toFailureFor(hand)
+    fun setTarget(new: SetTarget) = onChange(set.withHand(hand, target = new))
+    Section(if (hand == Hand.LEFT) "Mano izquierda" else "Mano derecha") {
+        Text("Objetivo", style = MaterialTheme.typography.titleSmall, color = RgColors.Navy)
+        RgSegmented(listOf(false, true), t != SetTarget.Peak, { if (it) "Zona" else "Máximo" }, { zone ->
+            setTarget(if (zone) SetTarget.Kg(15.0, 25.0) else SetTarget.Peak)
         })
         if (t == SetTarget.Peak) {
             Help("Tira lo más fuerte que puedas; se guarda tu máximo.")
-            return@Section
-        }
-        val byRecord = t is SetTarget.PercentOfRecord
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text("Umbral basado en registro", style = MaterialTheme.typography.titleSmall, color = RgColors.Navy)
-                Text("Zona en % de tu máximo evaluado de esa mano y agarre", style = MaterialTheme.typography.bodySmall, color = RgColors.TextSecondary)
-            }
-            Switch(byRecord, { on ->
-                onChange(set.copy(target = if (on) SetTarget.PercentOfRecord(70, 85) else SetTarget.Kg(15.0, 25.0)))
-            }, colors = SwitchDefaults.colors(checkedTrackColor = RgColors.Primary))
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            when (t) {
-                is SetTarget.Kg -> {
-                    DecimalField("Mín (kg)", t.minKg, Modifier.weight(1f)) { v -> onChange(set.copy(target = (set.target as SetTarget.Kg).copy(minKg = v))) }
-                    DecimalField("Máx (kg)", t.maxKg, Modifier.weight(1f)) { v -> onChange(set.copy(target = (set.target as SetTarget.Kg).copy(maxKg = v))) }
+        } else {
+            val byRecord = t is SetTarget.PercentOfRecord
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("% de mi registro", style = MaterialTheme.typography.titleSmall, color = RgColors.Navy)
+                    Text("Zona en % de tu máximo evaluado de esa mano y agarre", style = MaterialTheme.typography.bodySmall, color = RgColors.TextSecondary)
                 }
-                is SetTarget.PercentOfRecord -> {
-                    IntField("Mín (%)", t.minPercent, Modifier.weight(1f)) { v ->
-                        onChange(set.copy(target = (set.target as SetTarget.PercentOfRecord).copy(minPercent = v)))
-                    }
-                    IntField("Máx (%)", t.maxPercent, Modifier.weight(1f)) { v ->
-                        onChange(set.copy(target = (set.target as SetTarget.PercentOfRecord).copy(maxPercent = v)))
-                    }
-                }
-                SetTarget.Peak -> Unit
+                Switch(byRecord, { on -> setTarget(if (on) SetTarget.PercentOfRecord(70, 85) else SetTarget.Kg(15.0, 25.0)) },
+                    colors = SwitchDefaults.colors(checkedTrackColor = RgColors.Primary))
             }
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                when (t) {
+                    is SetTarget.Kg -> {
+                        DecimalField("Mín (kg)", t.minKg, Modifier.weight(1f)) { v -> setTarget(t.copy(minKg = v)) }
+                        DecimalField("Máx (kg)", t.maxKg, Modifier.weight(1f)) { v -> setTarget(t.copy(maxKg = v)) }
+                    }
+                    is SetTarget.PercentOfRecord -> {
+                        IntField("Mín (%)", t.minPercent, Modifier.weight(1f)) { v -> setTarget(t.copy(minPercent = v)) }
+                        IntField("Máx (%)", t.maxPercent, Modifier.weight(1f)) { v -> setTarget(t.copy(maxPercent = v)) }
+                    }
+                    SetTarget.Peak -> Unit
+                }
+            }
+            Help("Pitido y vibración si pasas del máximo; aviso suave si te quedas por debajo del mínimo.")
         }
-        Help("Pitido y vibración si pasas del máximo; aviso suave si te quedas por debajo del mínimo.")
+        Text("Hasta el fallo", style = MaterialTheme.typography.titleSmall, color = RgColors.Navy, modifier = Modifier.padding(top = 4.dp))
+        RgSegmented(ToFailure.entries, failure, { WorkoutLabels.failure(it) }, { onChange(set.withHand(hand, toFailure = it)) })
+        Help(WorkoutLabels.failureHelp(failure))
     }
 }
 
