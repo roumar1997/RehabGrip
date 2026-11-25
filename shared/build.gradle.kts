@@ -19,6 +19,8 @@ kotlin {
             implementation(project(":feature:history"))
             implementation(project(":feature:progress"))
             implementation(project(":feature:profile"))
+            implementation(project(":feature:reminders"))
+            implementation(project(":feature:workouts"))
         }
     }
 }

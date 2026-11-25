@@ -19,6 +19,8 @@ private class IosPlatform : PlatformServices {
     override val driverFactory = DriverFactory()
     override val isDebug: Boolean = kotlin.native.Platform.isDebugBinary
     override fun realForceSource(): ForceSource = IosCraneForceSource()
+    override val cuePlayer: com.rehabgrip.core.domain.port.CuePlayer = IosCuePlayer()
+    override val reminderScheduler: com.rehabgrip.core.domain.port.ReminderScheduler = IosReminderScheduler()
 
     /** CoreBluetooth asks for permission itself on first scan. */
     override suspend fun ensureBluetoothPermission() = true

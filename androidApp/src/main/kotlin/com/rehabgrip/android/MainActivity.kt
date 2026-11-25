@@ -15,7 +15,12 @@ import androidx.core.content.FileProvider
 import com.rehabgrip.core.ble.AndroidCraneForceSource
 import com.rehabgrip.core.ble.ForceSource
 import com.rehabgrip.core.data.DriverFactory
+import android.content.pm.PackageManager
+import com.rehabgrip.android.platform.AndroidCuePlayer
+import com.rehabgrip.android.platform.AndroidReminderScheduler
+import com.rehabgrip.core.domain.port.CuePlayer
 import com.rehabgrip.core.domain.port.ExportSharer
+import com.rehabgrip.core.domain.port.ReminderScheduler
 import com.rehabgrip.shared.App
 import com.rehabgrip.shared.AppContainer
 import com.rehabgrip.shared.Navigator
@@ -48,10 +53,19 @@ class MainActivity : ComponentActivity() {
     }
 
     private suspend fun requestBlePermission(): Boolean {
-        val deferred = CompletableDeferred<Boolean>()
-        pendingPermission = deferred
         val perms = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) arrayOf(Manifest.permission.BLUETOOTH_SCAN)
         else arrayOf(Manifest.permission.ACCESS_FINE_LOCATION)
+        return request(perms)
+    }
+
+    private suspend fun requestNotificationPermission(): Boolean =
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) true
+        else request(arrayOf(Manifest.permission.POST_NOTIFICATIONS))
+
+    private suspend fun request(perms: Array<String>): Boolean {
+        if (perms.all { checkSelfPermission(it) == PackageManager.PERMISSION_GRANTED }) return true
+        val deferred = CompletableDeferred<Boolean>()
+        pendingPermission = deferred
         permissionLauncher.launch(perms)
         return deferred.await()
     }
@@ -75,6 +89,9 @@ class MainActivity : ComponentActivity() {
         override val driverFactory = DriverFactory(appContext)
         override val isDebug = BuildConfig.DEBUG
         override val exportSharer = ExportSharer { name, content -> currentActivity?.shareCsv(name, content) }
+        override val cuePlayer: CuePlayer = AndroidCuePlayer(appContext)
+        override val reminderScheduler: ReminderScheduler =
+            AndroidReminderScheduler(appContext) { currentActivity?.requestNotificationPermission() ?: false }
         override fun realForceSource(): ForceSource = AndroidCraneForceSource(appContext)
         override suspend fun ensureBluetoothPermission(): Boolean = currentActivity?.requestBlePermission() ?: false
     }
