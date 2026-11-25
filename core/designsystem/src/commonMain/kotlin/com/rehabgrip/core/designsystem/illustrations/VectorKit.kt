@@ -76,7 +76,7 @@ internal fun ImageVector.Builder.woodenEdge(left: Float, right: Float, topY: Flo
     rect(left, topY, w, 22f, 8f, Palette.WoodTop)
     rect(left, topY + 16f, w, 40f, 8f, Palette.WoodFront)
     rect(left, topY + 16f, w, 6f, 3f, Palette.WoodShadow, alpha = 0.55f)
-    listOf(0.12f, 0.33f, 0.58f, 0.81f).forEachIndexed { i, f ->
+    listOf(0.08f, 0.30f, 0.52f, 0.66f).forEachIndexed { i, f ->
         line(Palette.WoodGrain, 1.4f, alpha = 0.7f) {
             val gx = left + w * f
             moveTo(gx, topY + 26f + i % 2 * 6f)

@@ -109,7 +109,9 @@ fun LiveForceChart(samples: List<ForceSample>, peak: ForceSample?, modifier: Mod
         }
         drawPath(area, Brush.verticalGradient(listOf(RgColors.Primary.copy(alpha = 0.28f), RgColors.Primary.copy(alpha = 0.03f)), top, bottom))
         drawPath(line, RgColors.Primary, style = Stroke(3.dp2px(this), cap = StrokeCap.Round, join = StrokeJoin.Round))
-        if (peak != null && peak.tMillis >= start) drawPeak(measurer, Offset(x(peak.tMillis), y(peak.kg.toFloat())), bottom, peak.kg)
+        // Session max when visible, otherwise the max of the visible window.
+        val mark = peak?.takeIf { it.tMillis >= start } ?: visible.maxBy { it.kg }.takeIf { it.kg > 0.5 }
+        if (mark != null) drawPeak(measurer, Offset(x(mark.tMillis), y(mark.kg.toFloat())), bottom, mark.kg)
     }
 }
 
