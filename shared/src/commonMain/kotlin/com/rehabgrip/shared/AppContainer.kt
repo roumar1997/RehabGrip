@@ -21,8 +21,6 @@ import com.rehabgrip.core.domain.port.CuePlayer
 import com.rehabgrip.core.domain.port.ExportSharer
 import com.rehabgrip.core.domain.port.ReminderScheduler
 import com.rehabgrip.core.domain.reminder.Reminder
-import com.rehabgrip.core.domain.grip.GripEvaluation
-import com.rehabgrip.core.domain.grip.GripRecords
 import com.rehabgrip.core.domain.model.Exercise
 import com.rehabgrip.core.domain.usecase.SaveGripEvaluation
 import com.rehabgrip.core.domain.usecase.SaveMeasurement
@@ -88,17 +86,8 @@ class AppContainer(val platform: PlatformServices) {
         platform.reminderScheduler.reschedule(reminders.all())
     }
 
-    /** Evaluated max of a hand for a grip (base for % targets); null when never evaluated. */
-    fun recordKg(
-        all: List<Measurement>,
-        evaluations: List<GripEvaluation>,
-        library: List<GripSpec>,
-        hand: Hand,
-        grip: Grip,
-    ): Double? = GripRecords.record(evaluations, all, grip, library, hand)?.kg
-
     /**
-     * Stores the session and, for standard grips, the max of each hand as a
+     * Stores the session and, for library grips, the max of each hand as a
      * measurement so it shows in Evolution. Discomforts go with the first one.
      */
     suspend fun saveWorkout(template: WorkoutTemplate, results: List<HandWorkoutResult>, discomforts: List<Discomfort>) {

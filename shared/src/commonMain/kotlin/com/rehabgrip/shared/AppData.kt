@@ -24,7 +24,11 @@ import com.rehabgrip.core.domain.model.Hand
 import com.rehabgrip.core.domain.model.Injury
 import com.rehabgrip.core.domain.model.Measurement
 import com.rehabgrip.core.domain.progress.DiscomfortCalculator
-import com.rehabgrip.core.domain.workout.CustomGrip
+import com.rehabgrip.core.domain.grip.GripEvaluation
+import com.rehabgrip.core.domain.grip.GripRecord
+import com.rehabgrip.core.domain.grip.GripRecords
+import com.rehabgrip.core.domain.workout.Grip
+import com.rehabgrip.core.domain.workout.GripSpec
 import com.rehabgrip.core.domain.workout.WorkoutResultEntry
 import com.rehabgrip.core.domain.workout.WorkoutTemplate
 
@@ -33,9 +37,13 @@ internal data class AppData(
     val measurements: List<Measurement>,
     val simulated: Boolean,
     val workouts: List<WorkoutTemplate>,
-    val customGrips: List<CustomGrip>,
+    val grips: List<GripSpec>,
+    val gripEvaluations: List<GripEvaluation>,
     val workoutResults: List<WorkoutResultEntry>,
 ) {
+    /** Evaluated max of a hand for a grip (falls back to old records of the predefined grips). */
+    fun record(hand: Hand, grip: Grip): GripRecord? = GripRecords.record(gripEvaluations, measurements, grip, grips, hand)
+
     val recentZones: List<String> get() = DiscomfortCalculator().recentZones(measurements)
 }
 
@@ -45,9 +53,10 @@ internal fun rememberAppData(container: AppContainer): AppData {
     val simulated by remember { container.settings.observeFlag(SIM_KEY, container.platform.isDebug) }
         .collectAsState(container.platform.isDebug)
     val workouts by remember { container.workouts.observeAll() }.collectAsState(emptyList())
-    val grips by remember { container.customGrips.observeAll() }.collectAsState(emptyList())
+    val grips by remember { container.grips.observeAll() }.collectAsState(emptyList())
+    val evaluations by remember { container.gripEvaluations.observeAll() }.collectAsState(emptyList())
     val results by remember { container.workoutResults.observeAll() }.collectAsState(emptyList())
-    return AppData(measurements, simulated, workouts, grips, results)
+    return AppData(measurements, simulated, workouts, grips, evaluations, results)
 }
 
 /** Users who onboarded before injuries existed answer it once. */

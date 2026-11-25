@@ -29,6 +29,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.rehabgrip.core.designsystem.theme.RgColors
 import com.rehabgrip.core.domain.model.Exercise
+import com.rehabgrip.core.domain.model.Hand
+import com.rehabgrip.core.domain.workout.GripSpec
 import com.rehabgrip.core.domain.model.Injury
 import com.rehabgrip.core.domain.model.Measurement
 import com.rehabgrip.core.domain.progress.ProgressCalculator
@@ -36,48 +38,84 @@ import com.rehabgrip.core.domain.progress.ProgressRange
 import com.rehabgrip.core.domain.progress.ProgressSummary
 import kotlin.math.abs
 
-/** Row data: injured as % of healthy now and its change since the start. */
-data class SymmetryRow(val exercise: Exercise, val percent: Double?, val trendPoints: Double?, val summary: ProgressSummary)
+/**
+ * Row data: one grip (or the dynamometer) with the injured hand as % of the healthy one,
+ * its change since the start and the latest kg of each hand.
+ */
+data class SymmetryRow(
+    val label: String,
+    val exercise: Exercise?,
+    val grip: GripSpec?,
+    val percent: Double?,
+    val trendPoints: Double?,
+    val rightKg: Double?,
+    val leftKg: Double?,
+    val summary: ProgressSummary,
+)
 
-fun symmetryRows(all: List<Measurement>, injury: Injury, range: ProgressRange, nowMillis: Long): List<SymmetryRow> {
+/** One row per library grip plus the dynamometer; without a library, one per exercise. */
+fun symmetryRows(
+    all: List<Measurement>,
+    injury: Injury,
+    range: ProgressRange,
+    nowMillis: Long,
+    grips: List<GripSpec> = emptyList(),
+): List<SymmetryRow> {
     val calc = ProgressCalculator()
-    return Exercise.entries.map { e ->
-        val s = calc.summarize(all, e, range, nowMillis)
-        SymmetryRow(e, s.symmetryPercent(injury.focusHand), s.symmetryTrend(injury.focusHand), s)
-    }
+    fun row(label: String, exercise: Exercise?, grip: GripSpec?, s: ProgressSummary) = SymmetryRow(
+        label, exercise, grip, s.symmetryPercent(injury.focusHand), s.symmetryTrend(injury.focusHand),
+        s.right.lastKg, s.left.lastKg, s,
+    )
+    val fromGrips = grips.map { g -> row(g.label, g.builtIn, g, calc.summarizeGrip(all, g, range, nowMillis)) }
+    val others = (if (grips.isEmpty()) Exercise.selectable else listOf(Exercise.DYNAMOMETER))
+        .map { e -> row(Labels.exercise(e), e, null, calc.summarize(all, e, range, nowMillis)) }
+    return fromGrips + others
 }
 
-/** Main card: "Lesionada respecto a sana" per exercise, with a 0-100 % bar and trend. */
+/** Main card: «Lesionada respecto a sana» per grip, with a 0-100 % bar, trend and the kg of each hand. */
 @Composable
 fun SymmetryOverview(
     measurements: List<Measurement>,
     injury: Injury,
     nowMillis: Long,
     modifier: Modifier = Modifier,
-    onExercise: ((Exercise) -> Unit)? = null,
+    grips: List<GripSpec> = emptyList(),
+    onRow: ((SymmetryRow) -> Unit)? = null,
 ) {
-    val rows = remember(measurements, injury) { symmetryRows(measurements, injury, ProgressRange.ALL, nowMillis) }
+    val rows = remember(measurements, injury, grips) { symmetryRows(measurements, injury, ProgressRange.ALL, nowMillis, grips) }
     RgCard(modifier.fillMaxWidth()) {
         Text(InjuryLabels.comparisonTitle(injury), style = MaterialTheme.typography.titleMedium, color = RgColors.Navy)
         Text(
-            if (injury.hand == null) "100 % = las dos manos igual de fuertes"
-            else "100 % = tu ${Labels.hand(injury.hand!!).lowercase()} ya iguala a la ${Labels.hand(injury.hand!!.other).lowercase()}",
+            percentMeaning(injury),
             style = MaterialTheme.typography.bodySmall, color = RgColors.TextSecondary,
         )
         Spacer(Modifier.height(8.dp))
         rows.forEach { r ->
-            Row(
-                Modifier.fillMaxWidth().let { m -> onExercise?.let { m.clickableNoRipple { it(r.exercise) } } ?: m }.padding(vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically,
+            Column(
+                Modifier.fillMaxWidth().let { m -> onRow?.let { m.clickableNoRipple { it(r) } } ?: m }.padding(vertical = 7.dp),
             ) {
-                Text(Labels.exercise(r.exercise), style = MaterialTheme.typography.bodyMedium, color = RgColors.Navy, modifier = Modifier.width(118.dp), maxLines = 1)
-                SymmetryBar(r.percent, Modifier.weight(1f).height(12.dp))
-                Spacer(Modifier.width(10.dp))
-                Text(r.percent?.let { formatPercent(it, false) } ?: "—", style = MaterialTheme.typography.titleSmall, color = RgColors.Navy, modifier = Modifier.width(52.dp))
-                TrendBadge(r.trendPoints)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(r.label, style = MaterialTheme.typography.titleSmall, color = RgColors.Navy, modifier = Modifier.weight(1f), maxLines = 1)
+                    Text(r.percent?.let { formatPercent(it, false) } ?: "—", style = MaterialTheme.typography.titleMedium, color = symmetryColor(r.percent))
+                    TrendBadge(r.trendPoints)
+                }
+                SymmetryBar(r.percent, Modifier.fillMaxWidth().height(10.dp))
+                Text(
+                    "${Labels.hand(Hand.RIGHT)} ${kgText(r.rightKg)} · ${Labels.hand(Hand.LEFT)} ${kgText(r.leftKg)}",
+                    style = MaterialTheme.typography.bodySmall, color = RgColors.TextSecondary, modifier = Modifier.padding(top = 3.dp),
+                )
             }
         }
     }
+}
+
+private fun kgText(kg: Double?) = kg?.let { "${formatKg(it)} kg" } ?: "—"
+
+/** What the % means, in plain words. */
+fun percentMeaning(injury: Injury): String {
+    val hurt = injury.hand
+    return if (hurt == null) "% = fuerza de la mano derecha respecto a la izquierda. 100 % = igual de fuertes."
+    else "% = fuerza de tu mano lesionada (${Labels.hand(hurt).lowercase()}) respecto a la sana (${Labels.hand(hurt.other).lowercase()}). 100 % = igual de fuertes."
 }
 
 @Composable

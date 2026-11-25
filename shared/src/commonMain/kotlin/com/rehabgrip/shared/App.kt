@@ -76,6 +76,7 @@ private fun MainContent(container: AppContainer, navigator: Navigator, session: 
         }
         is Route.Training, is Route.Live, is Route.SaveSession, is Route.Saved ->
             MeasureRoutes(route, container, navigator, session, data)
+        is Route.GripLibrary, is Route.GripEvaluate -> GripRoutes(route, container, navigator, session, data)
         is Route.Reminders, is Route.WorkoutEditor, is Route.WorkoutRun, is Route.WorkoutSummary ->
             WorkoutAndReminderRoutes(route, container, navigator, session, data)
     }

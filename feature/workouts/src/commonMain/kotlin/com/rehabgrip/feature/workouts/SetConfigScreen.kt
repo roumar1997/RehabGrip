@@ -43,7 +43,13 @@ import com.rehabgrip.core.designsystem.components.RgTopBar
 import com.rehabgrip.core.designsystem.components.clickableNoRipple
 import com.rehabgrip.core.designsystem.theme.RgColors
 import com.rehabgrip.core.domain.model.Exercise
-import com.rehabgrip.core.domain.workout.CustomGrip
+import com.rehabgrip.core.designsystem.components.GripChip
+import com.rehabgrip.core.designsystem.components.GripEditorDialog
+import com.rehabgrip.core.designsystem.components.GripRecordsLines
+import com.rehabgrip.core.domain.grip.GripRecord
+import com.rehabgrip.core.domain.model.Hand
+import com.rehabgrip.core.domain.model.Injury
+import com.rehabgrip.core.domain.workout.GripSpec
 import com.rehabgrip.core.domain.workout.Grip
 import com.rehabgrip.core.domain.workout.SetHand
 import com.rehabgrip.core.domain.workout.SetTarget
@@ -57,11 +63,14 @@ import com.rehabgrip.core.domain.workout.WorkoutSet
 internal fun SetConfigScreen(
     index: Int,
     set: WorkoutSet,
-    customGrips: List<CustomGrip>,
+    library: List<GripSpec>,
+    injury: Injury,
+    recordOf: (Grip, Hand) -> GripRecord?,
     onBack: () -> Unit,
     onChange: (WorkoutSet) -> Unit,
     onDelete: () -> Unit,
-    onCreateGrip: (CustomGrip) -> Unit,
+    onSaveGrip: (GripSpec) -> Unit,
+    onEvaluate: (GripSpec) -> Unit,
 ) {
     var creatingGrip by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxSize()) {
@@ -73,12 +82,24 @@ internal fun SetConfigScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Section("Agarre") {
-                val standard = listOf(Exercise.HALF_CRIMP, Exercise.THREE_FINGER, Exercise.OPEN_HAND).map { Grip.Standard(it) }
+                val current = (set.grip as? Grip.Library)?.grip
+                    ?: library.firstOrNull { it.builtIn == (set.grip as? Grip.Standard)?.exercise }
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    (standard + customGrips.map { Grip.Custom(it) }).forEach { g ->
-                        Pill(WorkoutLabels.grip(g), set.grip == g) { onChange(set.copy(grip = g)) }
+                    library.forEach { g -> GripChip(g.label, current?.id == g.id) { onChange(set.copy(grip = Grip.Library(g))) } }
+                    GripChip("+ Crear agarre", false) { creatingGrip = true }
+                }
+                if (current != null) {
+                    Help(current.summary)
+                    val grip = Grip.Library(current)
+                    GripRecordsLines(recordOf(grip, Hand.RIGHT), recordOf(grip, Hand.LEFT), injury)
+                    val needsBase = set.target is SetTarget.PercentOfRecord && Hand.entries.any { recordOf(grip, it) == null }
+                    if (needsBase) {
+                        Text(
+                            "El objetivo usa el registro de este agarre y falta evaluarlo: sin él no hay zona.",
+                            style = MaterialTheme.typography.bodySmall, color = RgColors.Warning,
+                        )
                     }
-                    Pill("+ Crear agarre", false) { creatingGrip = true }
+                    TextButton(onClick = { onEvaluate(current) }) { Text(if (needsBase) "Evaluar agarre ahora" else "Evaluar de nuevo") }
                 }
             }
             Section("Mano de esta serie") {
@@ -109,10 +130,10 @@ internal fun SetConfigScreen(
         RgPrimaryButton("Hecho", onBack, Modifier.padding(16.dp).navigationBarsPadding())
     }
     if (creatingGrip) {
-        CreateGripDialog(onDismiss = { creatingGrip = false }) {
-            onCreateGrip(it)
+        GripEditorDialog(GripSpec(), onDismiss = { creatingGrip = false }, onSave = {
+            onSaveGrip(it)
             creatingGrip = false
-        }
+        })
     }
 }
 
@@ -131,7 +152,7 @@ private fun TargetSection(set: WorkoutSet, onChange: (WorkoutSet) -> Unit) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text("Umbral basado en registro", style = MaterialTheme.typography.titleSmall, color = RgColors.Navy)
-                Text("Zona en % de tu último registro de esa mano y agarre", style = MaterialTheme.typography.bodySmall, color = RgColors.TextSecondary)
+                Text("Zona en % de tu máximo evaluado de esa mano y agarre", style = MaterialTheme.typography.bodySmall, color = RgColors.TextSecondary)
             }
             Switch(byRecord, { on ->
                 onChange(set.copy(target = if (on) SetTarget.PercentOfRecord(70, 85) else SetTarget.Kg(15.0, 25.0)))
@@ -177,30 +198,3 @@ private fun Pill(text: String, selected: Boolean, onClick: () -> Unit) = Text(
     modifier = Modifier.clip(CircleShape).background(if (selected) RgColors.Primary else RgColors.SurfaceTint)
         .clickableNoRipple(onClick).padding(horizontal = 12.dp, vertical = 8.dp),
 )
-
-@Composable
-private fun CreateGripDialog(onDismiss: () -> Unit, onCreate: (CustomGrip) -> Unit) {
-    var mm by remember { mutableStateOf("20") }
-    var fingers by remember { mutableStateOf("2 dedos centrales") }
-    var type by remember { mutableStateOf("semiarqueo") }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        containerColor = RgColors.Background,
-        title = { Text("Nuevo agarre") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                NumberField("Regleta (mm)", mm) { mm = it }
-                androidx.compose.material3.OutlinedTextField(fingers, { fingers = it.take(30) }, label = { Text("Dedos") }, singleLine = true)
-                androidx.compose.material3.OutlinedTextField(type, { type = it.take(30) }, label = { Text("Tipo de agarre") }, singleLine = true)
-            }
-        },
-        confirmButton = {
-            val edge = mm.toIntOrNull()
-            TextButton(
-                onClick = { onCreate(CustomGrip(edgeMm = edge!!, fingers = fingers.trim(), type = type.trim())) },
-                enabled = edge != null && edge in 4..60 && fingers.isNotBlank() && type.isNotBlank(),
-            ) { Text("Crear") }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } },
-    )
-}

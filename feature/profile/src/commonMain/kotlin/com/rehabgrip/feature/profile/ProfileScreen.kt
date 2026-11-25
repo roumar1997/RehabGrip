@@ -59,6 +59,8 @@ import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.runtime.remember
 import com.rehabgrip.core.designsystem.components.InjuryForm
 import com.rehabgrip.core.domain.model.Injury
+import com.rehabgrip.core.domain.grip.GripRecordRow
+import com.rehabgrip.core.domain.workout.GripSpec
 
 data class ProfileUiState(
     val name: String,
@@ -69,6 +71,8 @@ data class ProfileUiState(
     val simulatedScale: Boolean,
     val showDeveloperOptions: Boolean,
     val injury: Injury = Injury.NONE,
+    /** Each grip of the library with the evaluated max of every hand. */
+    val gripRows: List<GripRecordRow> = emptyList(),
 )
 
 /** "Perfil y configuración". */
@@ -80,6 +84,8 @@ fun ProfileScreen(
     onLoadSampleData: () -> Unit,
     onInjury: (Injury) -> Unit = {},
     onReminders: () -> Unit = {},
+    onGrips: () -> Unit = {},
+    onEvaluate: (GripSpec) -> Unit = {},
 ) {
     var dialog by rememberSaveable { mutableStateOf<String?>(null) }
     Column(Modifier.fillMaxSize()) {
@@ -116,6 +122,7 @@ fun ProfileScreen(
                     }
                 }
             }
+            GripRecordsCard(state, onGrips, onEvaluate)
             RgCard(Modifier.fillMaxWidth(), padding = PaddingValues(horizontal = 16.dp, vertical = 4.dp)) {
                 Option(Icons.Rounded.Badge, "Cambiar nombre") { dialog = DIALOG_NAME }
                 HorizontalDivider(color = RgColors.Outline)

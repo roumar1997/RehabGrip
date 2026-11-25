@@ -5,7 +5,8 @@ import com.rehabgrip.core.domain.model.Measurement
 import com.rehabgrip.core.domain.workout.Grip
 import com.rehabgrip.core.domain.workout.GripSpec
 import com.rehabgrip.core.domain.workout.SetTarget
-import com.rehabgrip.core.domain.workout.WorkoutSet
+import com.rehabgrip.core.domain.workout.WorkoutEngine
+import com.rehabgrip.core.domain.workout.WorkoutTemplate
 
 /** One evaluation of a grip for one hand: max, plus min and average of the hold when known. */
 data class GripEvaluation(
@@ -55,9 +56,28 @@ object GripRecords {
     fun rows(evaluations: List<GripEvaluation>, measurements: List<Measurement>, library: List<GripSpec>): List<GripRecordRow> =
         library.map { g -> GripRecordRow(g, record(evaluations, measurements, g, Hand.RIGHT), record(evaluations, measurements, g, Hand.LEFT)) }
 
-    /** Grips of sets with a «% del registro» target for which some of [hands] has no base yet. */
-    fun missingBases(sets: List<WorkoutSet>, hands: List<Hand>, recordKg: (Hand, Grip) -> Double?): List<GripSpec> =
-        sets.filter { it.target is SetTarget.PercentOfRecord }
-            .mapNotNull { s -> (s.grip as? Grip.Library)?.grip?.takeIf { hands.any { h -> recordKg(h, s.grip) == null } } }
-            .distinctBy { it.id }
+    /** (grip, hand) pairs a percent-of-record set will need but nobody has evaluated yet. */
+    fun missingBases(template: WorkoutTemplate, recordKg: (Hand, Grip) -> Double?): List<MissingBase> =
+        WorkoutEngine.buildSlots(template).mapNotNull { slot ->
+            val set = template.sets[slot.setIndex]
+            val grip = (set.grip as? Grip.Library)?.grip
+            if (grip != null && set.target is SetTarget.PercentOfRecord && recordKg(slot.hand, set.grip) == null) MissingBase(grip, slot.hand) else null
+        }.distinct()
+}
+
+/** A hand of a grip with no evaluation, needed by a percent target. */
+data class MissingBase(val grip: GripSpec, val hand: Hand)
+
+/** Max, min and average of one held pull, taken from the raw readings. */
+data class HoldStats(val maxKg: Double, val minKg: Double, val avgKg: Double) {
+    companion object {
+        /** Readings above this share of the peak count as holding (ramp up and release are ignored). */
+        const val HOLD_SHARE = 0.6
+
+        fun from(readings: List<Double>): HoldStats? {
+            val peak = readings.maxOrNull()?.takeIf { it > 0.0 } ?: return null
+            val hold = readings.filter { it >= peak * HOLD_SHARE }
+            return HoldStats(peak, hold.min(), hold.average())
+        }
+    }
 }

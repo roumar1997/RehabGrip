@@ -34,11 +34,14 @@ internal fun WorkoutAndReminderRoutes(route: Route, container: AppContainer, nav
         }
         is Route.WorkoutEditor -> WorkoutEditorScreen(
             initial = route.template,
-            customGrips = data.customGrips,
+            library = data.grips,
+            injury = session.injury,
+            recordOf = { grip, hand -> data.record(hand, grip) },
             onBack = { navigator.pop() },
             onSave = { t -> scope.launch { container.workouts.upsert(t); navigator.pop() } },
             onDelete = if (route.template.id == 0L) null else ({ scope.launch { container.workouts.delete(route.template.id); navigator.pop() } }),
-            onCreateGrip = { g -> scope.launch { container.customGrips.add(g) } },
+            onSaveGrip = { g -> scope.launch { container.grips.upsert(g) } },
+            evaluateContent = { grip, close -> GripEvaluateRoute(grip, container, session, data, close) },
         )
         is Route.WorkoutRun -> WorkoutRunRoute(route, container, navigator, data)
         is Route.WorkoutSummary -> WorkoutSummaryScreen(
@@ -61,13 +64,12 @@ internal fun WorkoutAndReminderRoutes(route: Route, container: AppContainer, nav
 @Composable
 private fun WorkoutRunRoute(route: Route.WorkoutRun, container: AppContainer, navigator: Navigator, data: AppData) {
     val scope = rememberCoroutineScope()
-    val measurements = data.measurements
     val presenter = remember(route) {
         WorkoutRunPresenter(
             template = route.template,
             source = container.forceSource(data.simulated),
             cues = container.platform.cuePlayer,
-            recordKg = { hand, grip -> container.recordKg(measurements, hand, grip) },
+            recordKg = { hand, grip -> data.record(hand, grip)?.kg },
             scope = scope,
         )
     }

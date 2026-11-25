@@ -39,6 +39,7 @@ import com.rehabgrip.core.domain.model.Exercise
 import com.rehabgrip.core.domain.model.Hand
 import com.rehabgrip.core.domain.model.Injury
 import com.rehabgrip.core.designsystem.components.SymmetryOverview
+import com.rehabgrip.core.domain.workout.GripSpec
 import com.rehabgrip.core.domain.model.Measurement
 
 /** Home: "Mis ejercicios". Shows the latest value per hand under each exercise. */
@@ -49,6 +50,8 @@ fun ExercisesScreen(
     injury: Injury,
     nowMillis: Long,
     onExercise: (Exercise) -> Unit,
+    grips: List<GripSpec> = emptyList(),
+    onGrip: (GripSpec) -> Unit = {},
 ) {
     Column(Modifier.fillMaxSize()) {
         RgTopBar("Mis ejercicios")
@@ -64,7 +67,7 @@ fun ExercisesScreen(
                 )
             }
             if (measurements.isNotEmpty()) {
-                item { SymmetryOverview(measurements, injury, nowMillis, onExercise = onExercise) }
+                item { SymmetryOverview(measurements, injury, nowMillis, grips = grips, onRow = { r -> r.exercise?.let(onExercise) ?: r.grip?.let(onGrip) }) }
             }
             item {
                 Text(
@@ -74,7 +77,7 @@ fun ExercisesScreen(
                     modifier = Modifier.padding(top = 4.dp),
                 )
             }
-            items(Exercise.entries) { exercise ->
+            items(Exercise.selectable) { exercise ->
                 ExerciseCard(exercise, measurements.filter { it.exercise == exercise }, injury) { onExercise(exercise) }
             }
         }
@@ -114,7 +117,7 @@ private fun LastValue(hand: Hand, history: List<Measurement>, injury: Injury) {
     val last = history.filter { it.hand == hand }.maxByOrNull { it.epochMillis } ?: return
     val color = if (hand == injury.hand) RgColors.Danger else if (hand == Hand.RIGHT) RgColors.RightHand else RgColors.LeftHand
     Text(
-        "${Labels.handShort(hand)} ${formatKg(last.kg)}",
+        "${Labels.handShort(hand)} ${formatKg(last.kg)} kg",
         style = MaterialTheme.typography.labelSmall,
         color = RgColors.Navy,
         modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(color.copy(alpha = 0.18f))

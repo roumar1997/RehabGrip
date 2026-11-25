@@ -49,6 +49,7 @@ import com.rehabgrip.core.designsystem.components.formatPercent
 import com.rehabgrip.core.designsystem.illustrations.GripIllustrations
 import com.rehabgrip.core.designsystem.theme.RgColors
 import com.rehabgrip.core.domain.model.Exercise
+import com.rehabgrip.core.domain.workout.GripSpec
 import com.rehabgrip.core.domain.model.Hand
 import com.rehabgrip.core.domain.model.Measurement
 import com.rehabgrip.core.domain.progress.HandProgress
@@ -63,13 +64,20 @@ import kotlinx.datetime.LocalDate
 
 /** "Evolución": right vs left over the chosen range, adapted to the days trained. */
 @Composable
-fun ProgressScreen(measurements: List<Measurement>, nowMillis: Long, injury: Injury = Injury.NONE) {
-    var exercise by rememberSaveable { mutableStateOf(Exercise.HALF_CRIMP) }
+fun ProgressScreen(
+    measurements: List<Measurement>,
+    nowMillis: Long,
+    injury: Injury = Injury.NONE,
+    grips: List<GripSpec> = emptyList(),
+) {
+    var selectedId by rememberSaveable { mutableStateOf(0L) }
     var range by rememberSaveable { mutableStateOf(ProgressRange.ALL) }
     var view by rememberSaveable { mutableStateOf(ProgressView.COMPARE) }
     val calculator = remember { ProgressCalculator() }
-    val summary = remember(measurements, exercise, range, nowMillis) {
-        calculator.summarize(measurements, exercise, range, nowMillis)
+    val grip = if (selectedId == DYNAMOMETER_ID) null else grips.firstOrNull { it.id == selectedId } ?: grips.firstOrNull()
+    val summary = remember(measurements, grip, range, nowMillis) {
+        if (grip != null) calculator.summarizeGrip(measurements, grip, range, nowMillis)
+        else calculator.summarize(measurements, Exercise.DYNAMOMETER, range, nowMillis)
     }
     Column(Modifier.fillMaxSize()) {
         RgTopBar("Evolución", leadingIcon = Icons.Rounded.BarChart)
@@ -85,13 +93,13 @@ fun ProgressScreen(measurements: List<Measurement>, nowMillis: Long, injury: Inj
             )
             when (view) {
                 ProgressView.COMPARE -> {
-                    SymmetryOverview(measurements, injury, nowMillis, onExercise = { exercise = it })
-                    ExercisePicker(exercise) { exercise = it }
+                    SymmetryOverview(measurements, injury, nowMillis, grips = grips, onRow = { selectedId = it.grip?.id ?: DYNAMOMETER_ID })
+                    GripPicker(grips, grip, selectedId == DYNAMOMETER_ID) { selectedId = it }
                     ComparisonCard(summary, injury)
                 }
                 ProgressView.HANDS -> {
-                    ExercisePicker(exercise) { exercise = it }
-                    ChartCard(summary, range, nowMillis)
+                    GripPicker(grips, grip, selectedId == DYNAMOMETER_ID) { selectedId = it }
+                    ChartCard(summary, range, nowMillis, grip)
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         HandCard(summary.of(injury.focusHand), Modifier.weight(1f), injury)
                         HandCard(summary.of(injury.focusHand.other), Modifier.weight(1f), injury)
@@ -105,18 +113,22 @@ fun ProgressScreen(measurements: List<Measurement>, nowMillis: Long, injury: Inj
 
 private enum class ProgressView(val label: String) { COMPARE("Comparar"), HANDS("Por mano"), DISCOMFORT("Molestias") }
 
+/** Id used by the picker for the dynamometer (not a library grip). */
+private const val DYNAMOMETER_ID = -1L
+
+/** Selector of the grip whose evolution is shown: each grip of the library, plus the dynamometer. */
 @Composable
-internal fun ExercisePicker(selected: Exercise, onSelect: (Exercise) -> Unit) {
+internal fun GripPicker(grips: List<GripSpec>, selected: GripSpec?, dynamometer: Boolean, onSelect: (Long) -> Unit) {
     Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        Exercise.entries.forEach { e ->
-            val sel = e == selected
+        (grips.map { it.id to it.label } + (DYNAMOMETER_ID to Labels.exercise(Exercise.DYNAMOMETER))).forEach { (id, name) ->
+            val sel = if (id == DYNAMOMETER_ID) dynamometer else !dynamometer && id == selected?.id
             Text(
-                Labels.exercise(e),
+                name,
                 style = MaterialTheme.typography.labelMedium,
                 color = if (sel) Color.White else RgColors.Navy,
                 modifier = Modifier.clip(CircleShape)
                     .background(if (sel) RgColors.Navy else RgColors.Surface)
-                    .clickableNoRipple { onSelect(e) }
+                    .clickableNoRipple { onSelect(id) }
                     .padding(horizontal = 14.dp, vertical = 8.dp),
             )
         }
@@ -124,17 +136,17 @@ internal fun ExercisePicker(selected: Exercise, onSelect: (Exercise) -> Unit) {
 }
 
 @Composable
-private fun ChartCard(summary: ProgressSummary, range: ProgressRange, nowMillis: Long) {
+private fun ChartCard(summary: ProgressSummary, range: ProgressRange, nowMillis: Long, grip: GripSpec?) {
     RgCard(Modifier.fillMaxWidth()) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Image(
-                GripIllustrations.of(summary.exercise), null,
+                (grip?.let(GripIllustrations::of) ?: GripIllustrations.of(summary.exercise)), null,
                 Modifier.size(width = 64.dp, height = 44.dp).clip(RoundedCornerShape(10.dp)),
                 contentScale = ContentScale.Crop,
             )
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
-                Text(Labels.exercise(summary.exercise), style = MaterialTheme.typography.titleMedium, color = RgColors.Navy)
+                Text(summary.title ?: Labels.exercise(summary.exercise), style = MaterialTheme.typography.titleMedium, color = RgColors.Navy)
                 Text(
                     if (summary.spanDays == 0) "Sin registros en este periodo" else "Últimos ${summary.spanDays} días entrenados",
                     style = MaterialTheme.typography.bodySmall, color = RgColors.TextSecondary,

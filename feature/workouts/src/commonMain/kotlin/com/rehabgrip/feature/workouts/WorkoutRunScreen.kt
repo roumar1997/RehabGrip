@@ -69,7 +69,14 @@ fun WorkoutRunScreen(
     Column(Modifier.fillMaxSize()) {
         RgTopBar(template.name, onBack = onFinish)
         Column(Modifier.weight(1f).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Column(
+            if (snap.panels.size > 1 && phase != EnginePhase.DONE) {
+                HandColumns(snap.panels)
+                Text(
+                    if (slot == null) "" else "Te toca: ${handName(slot.hand)} · ${phaseText(phase, state)}",
+                    style = MaterialTheme.typography.titleSmall, color = RgColors.Navy, textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            } else Column(
                 Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(bg).padding(vertical = 14.dp, horizontal = 16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {

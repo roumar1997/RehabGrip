@@ -40,7 +40,7 @@ internal fun WorkoutResultsList(entries: List<WorkoutResultEntry>, modifier: Mod
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         Text(Labels.hand(h.hand), style = MaterialTheme.typography.titleSmall, color = RgColors.Navy)
                         Text(
-                            "máx ${formatKg(h.maxKg)} · media ${formatKg(h.avgPullKg)} kg" +
+                            "máx ${formatKg(h.maxKg)} kg · media ${formatKg(h.avgPullKg)} kg" +
                                 (h.inZonePercent?.let { " · ${formatPercent(it, false)} en zona" } ?: "") + " · ${h.reps} reps",
                             style = MaterialTheme.typography.bodySmall, color = RgColors.Navy,
                         )

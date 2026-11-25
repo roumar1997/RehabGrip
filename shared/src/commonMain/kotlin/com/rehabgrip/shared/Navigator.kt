@@ -5,6 +5,7 @@ import com.rehabgrip.core.domain.model.Discomfort
 import com.rehabgrip.core.domain.model.Exercise
 import com.rehabgrip.core.domain.model.Hand
 import com.rehabgrip.core.domain.session.Attempt
+import com.rehabgrip.core.domain.workout.GripSpec
 import com.rehabgrip.core.domain.workout.HandWorkoutResult
 import com.rehabgrip.core.domain.workout.WorkoutTemplate
 
@@ -24,6 +25,8 @@ sealed interface Route {
         val discomforts: List<Discomfort> = emptyList(),
     ) : Route
     data object Reminders : Route
+    data object GripLibrary : Route
+    data class GripEvaluate(val grip: GripSpec) : Route
     data class WorkoutEditor(val template: WorkoutTemplate) : Route
     data class WorkoutRun(val template: WorkoutTemplate) : Route
     data class WorkoutSummary(val template: WorkoutTemplate, val results: List<HandWorkoutResult>) : Route

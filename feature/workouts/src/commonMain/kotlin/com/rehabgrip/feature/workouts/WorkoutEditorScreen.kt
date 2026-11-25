@@ -55,7 +55,11 @@ import com.rehabgrip.core.designsystem.components.Labels
 import com.rehabgrip.core.designsystem.components.clickableNoRipple
 import com.rehabgrip.core.designsystem.theme.RgColors
 import com.rehabgrip.core.domain.model.Hand
-import com.rehabgrip.core.domain.workout.CustomGrip
+import com.rehabgrip.core.domain.grip.GripRecord
+import com.rehabgrip.core.domain.model.Injury
+import com.rehabgrip.core.domain.workout.Grip
+import com.rehabgrip.core.domain.workout.GripSpec
+import androidx.compose.ui.text.style.TextOverflow
 import com.rehabgrip.core.domain.workout.HandMode
 import com.rehabgrip.core.domain.workout.WorkoutSet
 import com.rehabgrip.core.domain.workout.WorkoutTemplate
@@ -68,11 +72,15 @@ private class RowItem(val id: Int, val set: WorkoutSet)
 @Composable
 fun WorkoutEditorScreen(
     initial: WorkoutTemplate,
-    customGrips: List<CustomGrip>,
+    library: List<GripSpec>,
+    injury: Injury,
+    recordOf: (Grip, Hand) -> GripRecord?,
     onBack: () -> Unit,
     onSave: (WorkoutTemplate) -> Unit,
     onDelete: (() -> Unit)?,
-    onCreateGrip: (CustomGrip) -> Unit,
+    onSaveGrip: (GripSpec) -> Unit,
+    /** Hosts the «Evaluar agarre» flow without leaving (and losing) this draft. */
+    evaluateContent: @Composable (GripSpec, () -> Unit) -> Unit,
 ) {
     var name by remember { mutableStateOf(initial.name) }
     var handMode by remember { mutableStateOf(initial.handMode) }
@@ -85,18 +93,26 @@ fun WorkoutEditorScreen(
     var editRow by remember { mutableStateOf<Int?>(null) }
     var configRow by remember { mutableStateOf<Int?>(null) }
     var massEdit by remember { mutableStateOf(false) }
+    var evaluating by remember { mutableStateOf<GripSpec?>(null) }
 
     val draft = initial.copy(name = name, sets = rows.map { it.set }, handMode = handMode, firstHand = firstHand)
+    evaluating?.let { grip ->
+        evaluateContent(grip) { evaluating = null }
+        return
+    }
     configRow?.let { id ->
         val idx = rows.indexOfFirst { it.id == id }
         SetConfigScreen(
             index = idx,
             set = rows[idx].set,
-            customGrips = customGrips,
+            library = library,
+            injury = injury,
+            recordOf = recordOf,
             onBack = { configRow = null },
             onChange = { rows[idx] = RowItem(id, it) },
             onDelete = { rows.removeAt(idx); configRow = null },
-            onCreateGrip = onCreateGrip,
+            onSaveGrip = onSaveGrip,
+            onEvaluate = { evaluating = it },
         )
         return
     }
@@ -198,7 +214,7 @@ private fun RowScope.ToolButton(text: String, icon: androidx.compose.ui.graphics
     }
 }
 
-private val cell = Modifier.width(64.dp)
+private const val GRIP_WEIGHT = 2.6f
 
 @Composable
 private fun HeaderRow(withLead: Boolean) {
@@ -207,7 +223,7 @@ private fun HeaderRow(withLead: Boolean) {
         listOf("#", "REPS", "WORK", "REST").forEach {
             Text(it, style = MaterialTheme.typography.labelMedium, color = RgColors.TextSecondary, textAlign = TextAlign.Center, modifier = Modifier.weight(1f))
         }
-        Text("GRIP", style = MaterialTheme.typography.labelMedium, color = RgColors.TextSecondary, textAlign = TextAlign.Center, modifier = cell)
+        Text("GRIP", style = MaterialTheme.typography.labelMedium, color = RgColors.TextSecondary, textAlign = TextAlign.Center, modifier = Modifier.weight(GRIP_WEIGHT))
     }
 }
 
@@ -271,10 +287,16 @@ private fun SetsTable(
                     Cell("${item.set.reps}")
                     Cell("${item.set.workSeconds}s")
                     Cell("${item.set.restSeconds}s")
-                    Box(cell, contentAlignment = Alignment.Center) {
-                        IconButton(onClick = { onGripClick(item.id) }, enabled = !selecting && !reordering) {
-                            Icon(Icons.Rounded.PanTool, "Configurar serie", tint = RgColors.Primary)
-                        }
+                    Row(
+                        Modifier.weight(GRIP_WEIGHT).height(rowHeight).clip(RoundedCornerShape(10.dp))
+                            .let { if (selecting || reordering) it else it.clickableNoRipple { onGripClick(item.id) } },
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            WorkoutLabels.grip(item.set.grip), style = MaterialTheme.typography.labelMedium, color = RgColors.Navy,
+                            maxLines = 2, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.End, modifier = Modifier.weight(1f),
+                        )
+                        Icon(Icons.Rounded.PanTool, "Configurar serie", tint = RgColors.Primary, modifier = Modifier.padding(start = 4.dp).size(20.dp))
                     }
                 }
             }

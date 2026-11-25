@@ -4,6 +4,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import com.rehabgrip.core.domain.model.Exercise
+import com.rehabgrip.core.domain.workout.GripSpec
+import com.rehabgrip.core.domain.workout.GripType
 
 private const val W = 240f
 private const val H = 160f
@@ -24,6 +26,14 @@ object GripIllustrations {
         Exercise.THREE_FINGER -> ThreeFinger
         Exercise.OPEN_HAND -> OpenHand
         Exercise.DYNAMOMETER -> Dynamometer
+        Exercise.CUSTOM -> HalfCrimp
+    }
+
+    /** Predefined grips keep their drawing; own grips borrow the closest one by hold type. */
+    fun of(grip: GripSpec) = grip.builtIn?.let(::of) ?: when (grip.type) {
+        GripType.DRAG -> ThreeFinger
+        GripType.OPEN -> OpenHand
+        else -> HalfCrimp
     }
 }
 

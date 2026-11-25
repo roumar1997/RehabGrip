@@ -80,6 +80,11 @@ class WorkoutRunPresenter(
         val events = engine.tick(dt, kg)
         val snap = engine.snapshot()
         val pulling = snap.phase == EnginePhase.PULL
+        // Only the simulated scale reacts: it pulls with the workout and rests with it.
+        source.setEffort(
+            active = pulling || snap.phase == EnginePhase.WAITING,
+            strength = if (snap.slot?.hand == Hand.RIGHT) SIM_RIGHT_STRENGTH else 1.0,
+        )
         val zone = snap.zone
         val sample = ForceSample(now, kg)
         snap.slot?.let { stats.add(sample, it.hand, pulling, zone) }
@@ -131,6 +136,7 @@ class WorkoutRunPresenter(
 
     private companion object {
         const val TICK_MS = 50L
+        const val SIM_RIGHT_STRENGTH = 0.85
         const val MAX_SAMPLES = 400
         const val ABOVE_EVERY_MS = 700L
         const val BELOW_EVERY_MS = 2_000L

@@ -34,7 +34,19 @@ import com.rehabgrip.core.designsystem.components.RgCard
 import com.rehabgrip.core.designsystem.components.RgPrimaryButton
 import com.rehabgrip.core.designsystem.components.RgTopBar
 import com.rehabgrip.core.designsystem.theme.RgColors
+import com.rehabgrip.core.designsystem.components.Labels
+import com.rehabgrip.core.designsystem.components.RgInfoBanner
+import com.rehabgrip.core.designsystem.components.RgSecondaryButton
+import com.rehabgrip.core.domain.grip.MissingBase
+import com.rehabgrip.core.domain.workout.GripSpec
 import com.rehabgrip.core.domain.workout.WorkoutTemplate
+import androidx.compose.material.icons.rounded.Speed
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 
 /** "Entrenos": saved sessions; play or edit them. */
 @Composable
@@ -43,7 +55,12 @@ fun WorkoutsScreen(
     onNew: () -> Unit,
     onEdit: (WorkoutTemplate) -> Unit,
     onPlay: (WorkoutTemplate) -> Unit,
+    /** Grips and hands a «% del registro» target needs but nobody has evaluated. */
+    missingBases: (WorkoutTemplate) -> List<MissingBase>,
+    onEvaluateGrips: () -> Unit,
+    onEvaluate: (GripSpec) -> Unit,
 ) {
+    var asking by remember { mutableStateOf<Pair<WorkoutTemplate, List<MissingBase>>?>(null) }
     Column(Modifier.fillMaxSize()) {
         RgTopBar("Entrenamientos", leadingIcon = Icons.Rounded.Timer)
         LazyColumn(
@@ -56,6 +73,13 @@ fun WorkoutsScreen(
                     "Sesiones guiadas: series con tiempo de tirar y descansar, zona objetivo y pitidos.",
                     style = MaterialTheme.typography.bodyMedium, color = RgColors.TextSecondary,
                 )
+            }
+            item {
+                RgInfoBanner(
+                    "Antes de entrenar, evalúa cada agarre: su máximo por mano es la base de la zona objetivo.",
+                    Icons.Rounded.Speed,
+                )
+                RgSecondaryButton("Evaluar agarre", onEvaluateGrips, Modifier.padding(top = 8.dp), icon = Icons.Rounded.Speed)
             }
             items(templates, key = { it.id }) { t ->
                 RgCard(Modifier.fillMaxWidth(), onClick = { onEdit(t) }, padding = PaddingValues(start = 16.dp, top = 12.dp, bottom = 12.dp, end = 8.dp)) {
@@ -73,7 +97,7 @@ fun WorkoutsScreen(
                             Modifier.size(48.dp).clip(CircleShape).background(RgColors.Primary),
                             contentAlignment = Alignment.Center,
                         ) {
-                            IconButton(onClick = { onPlay(t) }) { Icon(Icons.Rounded.PlayArrow, "Empezar", tint = Color.White) }
+                            IconButton(onClick = { val m = missingBases(t); if (m.isEmpty()) onPlay(t) else asking = t to m }) { Icon(Icons.Rounded.PlayArrow, "Empezar", tint = Color.White) }
                         }
                         Spacer(Modifier.width(4.dp))
                     }
@@ -81,5 +105,22 @@ fun WorkoutsScreen(
             }
         }
         RgPrimaryButton("Nueva sesión", onNew, Modifier.padding(16.dp), icon = Icons.Rounded.Add)
+    }
+    asking?.let { (template, missing) ->
+        AlertDialog(
+            onDismissRequest = { asking = null },
+            containerColor = RgColors.Background,
+            title = { Text("Falta evaluar un agarre") },
+            text = {
+                Text(
+                    missing.joinToString("\n") { "• ${it.grip.label} · mano ${Labels.hand(it.hand).lowercase()}" } +
+                        "\n\nLa zona en % necesita el máximo de ese agarre y mano. Sin él, esas series se hacen sin zona.",
+                )
+            },
+            confirmButton = { TextButton(onClick = { asking = null; onEvaluate(missing.first().grip) }) { Text("Evaluar ahora") } },
+            dismissButton = {
+                TextButton(onClick = { asking = null; onPlay(template) }) { Text("Entrenar igualmente") }
+            },
+        )
     }
 }

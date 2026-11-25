@@ -17,9 +17,9 @@ internal object WorkoutLabels {
             Exercise.HALF_CRIMP -> "Semiarqueo 4 dedos"
             Exercise.THREE_FINGER -> "Extensión 3 dedos"
             Exercise.OPEN_HAND -> "Semiestirado 4 dedos"
-            Exercise.DYNAMOMETER -> Labels.exercise(g.exercise)
+            Exercise.DYNAMOMETER, Exercise.CUSTOM -> Labels.exercise(g.exercise)
         }
-        is Grip.Custom -> "${g.grip.edgeMm} mm / ${g.grip.fingers} / ${g.grip.type}"
+        is Grip.Library -> g.grip.label
     }
 
     fun handMode(m: HandMode) = when (m) {

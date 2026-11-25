@@ -38,7 +38,7 @@ internal fun ComparisonCard(summary: ProgressSummary, injury: Injury) {
     val healthy = summary.of(focus.other)
     val now = summary.symmetryPercent(focus)
     RgCard(Modifier.fillMaxWidth()) {
-        Text(Labels.exercise(summary.exercise), style = MaterialTheme.typography.titleLarge, color = RgColors.Navy)
+        Text(summary.title ?: Labels.exercise(summary.exercise), style = MaterialTheme.typography.titleLarge, color = RgColors.Navy)
         Text(InjuryLabels.comparisonTitle(injury), style = MaterialTheme.typography.bodySmall, color = RgColors.TextSecondary)
         Row(Modifier.fillMaxWidth().padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(
@@ -76,7 +76,7 @@ internal fun ComparisonCard(summary: ProgressSummary, injury: Injury) {
 private fun BestColumn(title: String, best: Double?, last: Double?, color: Color) = Column {
     Text(title, style = MaterialTheme.typography.labelMedium, color = color)
     Text(best?.let { "${formatKg(it)} kg" } ?: "—", style = MaterialTheme.typography.headlineSmall, color = RgColors.Navy)
-    Text("mejor marca · último ${last?.let(::formatKg) ?: "—"}", style = MaterialTheme.typography.bodySmall, color = RgColors.TextSecondary)
+    Text("mejor marca · último ${last?.let { "${formatKg(it)} kg" } ?: "—"}", style = MaterialTheme.typography.bodySmall, color = RgColors.TextSecondary)
 }
 
 /** Days where both hands were measured: injured as % of healthy. */

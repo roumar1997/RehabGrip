@@ -57,6 +57,7 @@ import com.rehabgrip.core.domain.model.Measurement
 import com.rehabgrip.core.domain.model.MeasurementSource
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
+import com.rehabgrip.core.domain.workout.GripSpec
 import kotlinx.datetime.toLocalDateTime
 
 private enum class HandFilter(val hand: Hand?, val label: String) {
@@ -70,7 +71,9 @@ fun HistoryScreen(
     onExport: (List<Measurement>) -> Unit,
     onDelete: (Long) -> Unit,
     workouts: List<WorkoutResultEntry> = emptyList(),
+    grips: List<GripSpec> = emptyList(),
 ) {
+    fun nameOf(m: Measurement) = m.gripId?.let { id -> grips.firstOrNull { it.id == id } }?.label ?: Labels.exercise(m.exercise)
     var showWorkouts by rememberSaveable { mutableStateOf(false) }
     var handFilter by rememberSaveable { mutableStateOf(HandFilter.ALL) }
     var exerciseFilter by rememberSaveable { mutableStateOf<Exercise?>(null) }
@@ -99,7 +102,7 @@ fun HistoryScreen(
                 RgSegmented(HandFilter.entries, handFilter, { it.label }, { handFilter = it })
                 Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Pill("Todos", exerciseFilter == null) { exerciseFilter = null }
-                    Exercise.entries.forEach { e -> Pill(Labels.exercise(e), exerciseFilter == e) { exerciseFilter = e } }
+                    Exercise.selectable.forEach { e -> Pill(Labels.exercise(e), exerciseFilter == e) { exerciseFilter = e } }
                 }
             }
         }
@@ -111,7 +114,7 @@ fun HistoryScreen(
             if (filtered.isEmpty()) {
                 item { Text("Todavía no hay registros con este filtro", color = RgColors.TextSecondary, style = MaterialTheme.typography.bodyMedium) }
             }
-            items(filtered, key = { it.id }) { m -> HistoryRow(m) { toDelete = m } }
+            items(filtered, key = { it.id }) { m -> HistoryRow(m, nameOf(m)) { toDelete = m } }
         }
         RgSecondaryButton(
             "Exportar datos (CSV)", { onExport(filtered) },
@@ -122,7 +125,7 @@ fun HistoryScreen(
         AlertDialog(
             onDismissRequest = { toDelete = null },
             title = { Text("¿Borrar registro?") },
-            text = { Text("${Labels.exercise(m.exercise)} · ${Labels.hand(m.hand)} · ${formatKg(m.kg)} kg") },
+            text = { Text("${nameOf(m)} · ${Labels.hand(m.hand)} · ${formatKg(m.kg)} kg") },
             confirmButton = { TextButton(onClick = { onDelete(m.id); toDelete = null }) { Text("Borrar", color = RgColors.Danger) } },
             dismissButton = { TextButton(onClick = { toDelete = null }) { Text("Cancelar") } },
         )
@@ -139,7 +142,7 @@ private fun Pill(text: String, selected: Boolean, onClick: () -> Unit) = Text(
 )
 
 @Composable
-private fun HistoryRow(m: Measurement, onDelete: () -> Unit) {
+private fun HistoryRow(m: Measurement, name: String, onDelete: () -> Unit) {
     val dt = Instant.fromEpochMilliseconds(m.epochMillis).toLocalDateTime(TimeZone.currentSystemDefault())
     val date = "${dt.dayOfMonth.toString().padStart(2, '0')}/${dt.monthNumber.toString().padStart(2, '0')}/${dt.year}"
     val handColor = if (m.hand == Hand.RIGHT) RgColors.RightHand else RgColors.LeftHand
@@ -148,7 +151,7 @@ private fun HistoryRow(m: Measurement, onDelete: () -> Unit) {
             Box(Modifier.size(12.dp).clip(CircleShape).background(handColor))
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
-                Text(Labels.exercise(m.exercise), style = MaterialTheme.typography.titleSmall, color = RgColors.Navy)
+                Text(name, style = MaterialTheme.typography.titleSmall, color = RgColors.Navy)
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("$date · ${Labels.hand(m.hand)}", style = MaterialTheme.typography.bodySmall, color = RgColors.TextSecondary)
                     Spacer(Modifier.width(6.dp))

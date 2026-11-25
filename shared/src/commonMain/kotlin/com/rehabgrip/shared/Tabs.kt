@@ -3,6 +3,7 @@ package com.rehabgrip.shared
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import com.rehabgrip.core.domain.grip.GripRecords
 import com.rehabgrip.core.domain.model.Exercise
 import com.rehabgrip.core.domain.progress.ProgressCalculator
 import com.rehabgrip.core.domain.progress.ProgressRange
@@ -23,16 +24,22 @@ import kotlinx.datetime.toLocalDateTime
 internal fun TabContent(tab: Tab, container: AppContainer, navigator: Navigator, session: AppSession, data: AppData) {
     val scope = rememberCoroutineScope()
     when (tab) {
-        Tab.HOME -> ExercisesScreen(session.profile.name, data.measurements, session.injury, container.now()) {
-            navigator.push(Route.Training(it))
-        }
-        Tab.PROGRESS -> ProgressScreen(data.measurements, container.now(), session.injury)
+        Tab.HOME -> ExercisesScreen(
+            session.profile.name, data.measurements, session.injury, container.now(),
+            onExercise = { navigator.push(Route.Training(it)) },
+            grips = data.grips,
+            onGrip = { navigator.push(Route.GripEvaluate(it)) },
+        )
+        Tab.PROGRESS -> ProgressScreen(data.measurements, container.now(), session.injury, data.grips)
         Tab.WORKOUTS -> WorkoutsScreen(
             templates = data.workouts,
             onNew = {
                 navigator.push(Route.WorkoutEditor(WorkoutTemplate(name = "", sets = listOf(WorkoutSet(reps = 6, workSeconds = 10, restSeconds = 20)))))
             },
             onEdit = { navigator.push(Route.WorkoutEditor(it)) },
+            missingBases = { t -> GripRecords.missingBases(t) { hand, grip -> data.record(hand, grip)?.kg } },
+            onEvaluateGrips = { navigator.push(Route.GripLibrary) },
+            onEvaluate = { navigator.push(Route.GripEvaluate(it)) },
             onPlay = { t ->
                 scope.launch {
                     if (data.simulated || container.platform.ensureBluetoothPermission()) navigator.push(Route.WorkoutRun(t))
@@ -44,6 +51,7 @@ internal fun TabContent(tab: Tab, container: AppContainer, navigator: Navigator,
             onExport = container::export,
             onDelete = { id -> scope.launch { container.measurements.delete(id) } },
             workouts = data.workoutResults,
+            grips = data.grips,
         )
         Tab.PROFILE -> ProfileTab(container, navigator, session, data)
     }
@@ -64,12 +72,15 @@ private fun ProfileTab(container: AppContainer, navigator: Navigator, session: A
             simulatedScale = data.simulated,
             showDeveloperOptions = container.platform.isDebug,
             injury = session.injury,
+            gripRows = GripRecords.rows(data.gripEvaluations, data.measurements, data.grips),
         ),
         onRename = { scope.launch { container.settings.save(com.rehabgrip.core.domain.model.UserProfile(it)) } },
         onSimulatedScale = { scope.launch { container.settings.setFlag(SIM_KEY, it) } },
         onLoadSampleData = { scope.launch { container.loadSampleData() } },
         onInjury = { scope.launch { container.settings.saveInjury(it) } },
         onReminders = { navigator.push(Route.Reminders) },
+        onGrips = { navigator.push(Route.GripLibrary) },
+        onEvaluate = { navigator.push(Route.GripEvaluate(it)) },
     )
 }
 

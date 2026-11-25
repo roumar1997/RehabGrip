@@ -2,6 +2,7 @@ package com.rehabgrip.core.domain
 
 import com.rehabgrip.core.domain.grip.GripEvaluation
 import com.rehabgrip.core.domain.grip.GripRecords
+import com.rehabgrip.core.domain.grip.HoldStats
 import com.rehabgrip.core.domain.model.Exercise
 import com.rehabgrip.core.domain.model.Hand
 import com.rehabgrip.core.domain.model.Measurement
@@ -103,8 +104,21 @@ class GripRecordsTest {
             WorkoutSet(6, 10, 20, Grip.Library(g), SetTarget.PercentOfRecord(70, 85)),
         )
         val lookup: (Hand, Grip) -> Double? = { h, grip -> if (h == Hand.RIGHT && (grip as Grip.Library).grip.id == 5L) 30.0 else null }
-        assertEquals(listOf(9L, 5L), GripRecords.missingBases(sets, Hand.entries, lookup).map { it.id })
-        assertEquals(listOf(9L), GripRecords.missingBases(sets, listOf(Hand.RIGHT), lookup).map { it.id })
+        val both = WorkoutTemplate(name = "t", sets = sets, handMode = HandMode.BOTH_SEQUENTIAL, firstHand = Hand.RIGHT)
+        val missing = GripRecords.missingBases(both, lookup)
+        assertEquals(setOf(9L to Hand.RIGHT, 9L to Hand.LEFT, 5L to Hand.LEFT), missing.map { it.grip.id to it.hand }.toSet())
+        val single = both.copy(handMode = HandMode.SINGLE)
+        assertEquals(listOf(9L to Hand.RIGHT), GripRecords.missingBases(single, lookup).map { it.grip.id to it.hand })
+    }
+
+    @Test
+    fun holdStatsIgnoreRampAndRelease() {
+        val s = HoldStats.from(listOf(0.0, 5.0, 20.0, 38.0, 36.0, 34.0, 35.0, 12.0, 0.0))!!
+        assertEquals(38.0, s.maxKg)
+        assertEquals(34.0, s.minKg)
+        assertEquals(35.75, s.avgKg)
+        assertNull(HoldStats.from(listOf(0.0, 0.0)))
+        assertNull(HoldStats.from(emptyList()))
     }
 
     @Test
