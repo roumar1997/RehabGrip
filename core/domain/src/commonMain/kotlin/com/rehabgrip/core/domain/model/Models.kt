@@ -44,7 +44,11 @@ data class Measurement(
     val discomforts: List<Discomfort> = emptyList(),
     /** Library grip used, when the value came from an evaluation or a session. */
     val gripId: Long? = null,
-)
+    /** Who pulled: blank = the app's user, otherwise a friend's name (meter mode). */
+    val person: String = "",
+) {
+    val isMine: Boolean get() = person.isBlank()
+}
 
 /** One discomfort: predefined or free-text zone and level 0-10. */
 data class Discomfort(val zone: String, val level: Int) {

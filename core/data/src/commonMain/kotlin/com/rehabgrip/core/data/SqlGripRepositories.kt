@@ -31,6 +31,7 @@ class SqlGripRepository(private val db: RehabGripDatabase) : GripRepository {
                 fingerNote = it.fingers,
                 type = enumOrNull<GripType>(it.type) ?: GripType.OTHER,
                 builtIn = enumOrNull<Exercise>(it.built_in),
+                presetKey = it.built_in?.takeIf { k -> k.startsWith(GripSpec.PRESET_PREFIX) }?.removePrefix(GripSpec.PRESET_PREFIX),
             )
         }
     }
@@ -40,7 +41,7 @@ class SqlGripRepository(private val db: RehabGripDatabase) : GripRepository {
         val note = grip.fingerNote.trim()
         if (grip.id == 0L) {
             q.transactionWithResult {
-                q.insertGrip(name, grip.edgeMm.toLong(), grip.fingerCount.toLong(), note, grip.type.name, grip.builtIn?.name)
+                q.insertGrip(name, grip.edgeMm.toLong(), grip.fingerCount.toLong(), note, grip.type.name, grip.builtIn?.name ?: grip.presetKey?.let { k -> GripSpec.PRESET_PREFIX + k })
                 db.rehabGripQueries.lastId().executeAsOne()
             }
         } else {
@@ -57,8 +58,11 @@ class SqlGripRepository(private val db: RehabGripDatabase) : GripRepository {
     }
 
     override suspend fun ensureDefaults() {
-        val have = observeAll().first().mapNotNull { it.builtIn }.toSet()
-        GripSpec.predefined().filter { it.builtIn !in have }.forEach { upsert(it) }
+        val grips = observeAll().first()
+        val haveExercises = grips.mapNotNull { it.builtIn }.toSet()
+        val havePresets = grips.mapNotNull { it.presetKey }.toSet()
+        GripSpec.predefined().filter { if (it.builtIn != null) it.builtIn !in haveExercises else it.presetKey !in havePresets }
+            .forEach { upsert(it) }
     }
 }
 

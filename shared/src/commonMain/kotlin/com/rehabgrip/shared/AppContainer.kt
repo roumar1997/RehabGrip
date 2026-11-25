@@ -70,9 +70,21 @@ class AppContainer(val platform: PlatformServices) {
     /** Adds the FREZ-like example session the first time, and the predefined grips when missing. */
     suspend fun seedExampleWorkout() {
         grips.ensureDefaults()
-        if (settings.observeFlag(KEY_SEEDED, false).first()) return
-        if (workouts.observeAll().first().isEmpty()) workouts.upsert(WorkoutTemplate.example())
-        settings.setFlag(KEY_SEEDED, true)
+        if (!settings.observeFlag(KEY_SEEDED, false).first()) {
+            if (workouts.observeAll().first().isEmpty()) workouts.upsert(WorkoutTemplate.example())
+            settings.setFlag(KEY_SEEDED, true)
+        }
+        seedGripSession()
+    }
+
+    /** The default grip session (once; deleting it does not bring it back). */
+    private suspend fun seedGripSession() {
+        if (settings.observeFlag(KEY_SEEDED_GRIP_SESSION, false).first()) return
+        val existing = workouts.observeAll().first()
+        if (existing.none { it.name == WorkoutTemplate.GRIP_SESSION_NAME }) {
+            WorkoutTemplate.gripSession(grips.observeAll().first())?.let { workouts.upsert(it) } ?: return
+        }
+        settings.setFlag(KEY_SEEDED_GRIP_SESSION, true)
     }
 
     suspend fun saveReminder(reminder: Reminder) {
@@ -107,5 +119,6 @@ class AppContainer(val platform: PlatformServices) {
 
     private companion object {
         const val KEY_SEEDED = "seeded_example_workout"
+        const val KEY_SEEDED_GRIP_SESSION = "seeded_grip_session"
     }
 }

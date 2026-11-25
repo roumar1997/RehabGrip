@@ -73,7 +73,7 @@ class WorkoutEngine(
     private val current: Slot? get() = slots.getOrNull(index)
     private fun setOf(slot: Slot) = template.sets[slot.setIndex]
 
-    fun zoneFor(slot: Slot): TargetZone? = setOf(slot).target.resolve(recordKg(slot.hand, setOf(slot).grip))
+    fun zoneFor(slot: Slot): TargetZone? = setOf(slot).targetFor(slot.hand).resolve(recordKg(slot.hand, setOf(slot).grip))
 
     /** Advances time by [dtMs] with the latest force reading [kg]. */
     fun tick(dtMs: Long, kg: Double): List<EngineEvent> {
@@ -113,7 +113,7 @@ class WorkoutEngine(
         peak = maxOf(peak, kg)
         val workMs = set.workSeconds * 1000L
         val dropped = belowMs > FAIL_BELOW_MS
-        when (set.toFailure) {
+        when (set.toFailureFor(slot.hand)) {
             ToFailure.TIME -> if (dropped || pullMs >= MAX_OPEN_PULL_MS) endPull(slot, failed = false, events)
             ToFailure.REPS -> when {
                 pullMs >= workMs -> endPull(slot, failed = false, events)
@@ -153,7 +153,7 @@ class WorkoutEngine(
         val display = when (phase) {
             EnginePhase.PREPARE -> prepareLeft
             EnginePhase.REST -> rest.getValue(slot!!.hand)
-            EnginePhase.PULL -> if (set!!.toFailure == ToFailure.TIME) pullMs else (set.workSeconds * 1000L - pullMs).coerceAtLeast(0)
+            EnginePhase.PULL -> if (set!!.toFailureFor(slot!!.hand) == ToFailure.TIME) pullMs else (set.workSeconds * 1000L - pullMs).coerceAtLeast(0)
             else -> 0
         }
         val other = slot?.hand?.other?.takeIf { alternating }
@@ -226,21 +226,23 @@ class WorkoutEngine(
                 SetHand.LEFT -> listOf(Hand.LEFT)
                 SetHand.SESSION -> if (t.handMode == HandMode.SINGLE) listOf(a) else listOf(a, b)
             }
-            fun reps(set: WorkoutSet) = if (set.toFailure == ToFailure.REPS) MAX_REPS_TO_FAILURE else set.reps
+            fun reps(set: WorkoutSet, hand: Hand) = if (set.toFailureFor(hand) == ToFailure.REPS) MAX_REPS_TO_FAILURE else set.reps
             if (t.handMode == HandMode.BOTH_SEQUENTIAL) {
                 return listOf(a, b).flatMap { hand ->
                     t.sets.withIndex().filter { hand in handsFor(it.value) }
-                        .flatMap { (i, s) -> (1..reps(s)).map { Slot(i, it, hand) } }
+                        .flatMap { (i, s) -> (1..reps(s, hand)).map { Slot(i, it, hand) } }
                 }
             }
             return t.sets.withIndex().flatMap { (i, s) ->
-                (1..reps(s)).flatMap { rep -> handsFor(s).map { Slot(i, rep, it) } }
+                val hands = handsFor(s)
+                val maxReps = hands.maxOf { reps(s, it) }
+                (1..maxReps).flatMap { rep -> hands.filter { rep <= reps(s, it) }.map { Slot(i, rep, it) } }
             }
         }
 
         /** «Duración estimada»: runs the plan as if every rep went to schedule. */
         fun estimateDurationMs(t: WorkoutTemplate): Long {
-            val plain = t.copy(sets = t.sets.map { it.copy(toFailure = ToFailure.OFF, startMode = StartMode.TIME) })
+            val plain = t.copy(sets = t.sets.map { it.copy(toFailure = ToFailure.OFF, leftToFailure = ToFailure.OFF, startMode = StartMode.TIME) })
             val engine = WorkoutEngine(plain)
             var elapsed = 0L
             while (engine.current != null && elapsed < MAX_ESTIMATE_MS) {

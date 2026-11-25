@@ -87,7 +87,18 @@ data class WorkoutSet(
     val startMode: StartMode = StartMode.TIME,
     val thresholdKg: Double = DEFAULT_THRESHOLD_KG,
     val hand: SetHand = SetHand.SESSION,
+    /** Left-hand overrides: [target] / [toFailure] are the RIGHT hand's; null here = same as the right. */
+    val leftTarget: SetTarget? = null,
+    val leftToFailure: ToFailure? = null,
 ) {
+    fun targetFor(hand: Hand): SetTarget = if (hand == Hand.LEFT) leftTarget ?: target else target
+
+    fun toFailureFor(hand: Hand): ToFailure = if (hand == Hand.LEFT) leftToFailure ?: toFailure else toFailure
+
+    /** Copy with the target / «hasta el fallo» of one hand replaced. */
+    fun withHand(hand: Hand, target: SetTarget = targetFor(hand), toFailure: ToFailure = toFailureFor(hand)): WorkoutSet =
+        if (hand == Hand.RIGHT) copy(target = target, toFailure = toFailure) else copy(leftTarget = target, leftToFailure = toFailure)
+
     companion object {
         const val DEFAULT_THRESHOLD_KG = 2.0
     }
@@ -111,10 +122,31 @@ data class WorkoutTemplate(
             if (s.restSeconds !in 0..1800) add("Serie $n: descanso entre 0 y 1800 s")
             if (s.thresholdKg !in 0.5..50.0) add("Serie $n: umbral entre 0,5 y 50 kg")
             s.target.problem()?.let { add("Serie $n: $it") }
+            s.leftTarget?.problem()?.let { add("Serie $n (izquierda): $it") }
         }
     }
 
     companion object {
+        const val GRIP_SESSION_NAME = "Entreno de agarre"
+
+        /** Library keys of the six grips of the default session, in order. */
+        private val GRIP_SESSION_ORDER = listOf(
+            Exercise.HALF_CRIMP, Exercise.THREE_FINGER,
+            GripSpec.KEY_BIDEDO_STRETCHED, GripSpec.KEY_PISTOL, GripSpec.KEY_BIDEDO_CRIMP, GripSpec.KEY_PISTOL_CRIMP,
+        )
+
+        /**
+         * The default session of the FREZ routine: 6 sets, one per grip, reps 6-6-2-2-2-2,
+         * 10 s pulling and 20 s rest, both hands alternating. Null when a grip is missing.
+         */
+        fun gripSession(library: List<GripSpec>): WorkoutTemplate? {
+            val sets = GRIP_SESSION_ORDER.zip(listOf(6, 6, 2, 2, 2, 2)).map { (key, reps) ->
+                val grip = library.firstOrNull { if (key is Exercise) it.builtIn == key else it.presetKey == key } ?: return null
+                WorkoutSet(reps = reps, workSeconds = 10, restSeconds = 20, grip = Grip.Library(grip))
+            }
+            return WorkoutTemplate(name = GRIP_SESSION_NAME, sets = sets, handMode = HandMode.ALTERNATING, firstHand = Hand.RIGHT)
+        }
+
         /** Example like the FREZ captures: 6 sets, 6-6-2-2-2-2 reps, 10 s on / 20 s off. */
         fun example() = WorkoutTemplate(
             name = "Repeticiones 10/20",

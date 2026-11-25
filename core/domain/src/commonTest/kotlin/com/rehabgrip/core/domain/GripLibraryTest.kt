@@ -50,11 +50,17 @@ class GripSpecTest {
     }
 
     @Test
-    fun predefinedAreTheThreeOriginalOnes() {
+    fun predefinedAreTheOriginalOnesPlusTheFourTwoFingerGrips() {
         val p = GripSpec.predefined()
-        assertEquals(listOf(Exercise.HALF_CRIMP, Exercise.THREE_FINGER, Exercise.OPEN_HAND), p.map { it.builtIn })
-        assertEquals(listOf("Semiarqueo 4 dedos", "Extensión 3 dedos", "Semiestirado 4 dedos"), p.map { it.name })
-        assertTrue(p.all { it.edgeMm == 20 })
+        assertEquals(listOf(Exercise.HALF_CRIMP, Exercise.THREE_FINGER, Exercise.OPEN_HAND), p.take(3).map { it.builtIn })
+        assertEquals(
+            listOf("Semiarqueo 4 dedos", "Extensión 3 dedos", "Semiestirado 4 dedos", "Bidedo estirado", "Bidedo arqueado", "Bidedo pistola", "Bidedo pistola arqueado"),
+            p.map { it.name },
+        )
+        assertTrue(p.all { it.edgeMm == 20 && it.isPredefined })
+        assertEquals(setOf(GripType.DRAG, GripType.HALF_CRIMP), p.drop(3).map { it.type }.toSet())
+        assertEquals(listOf("delanteros", "delanteros", "centrales", "centrales"), p.drop(3).map { it.fingerNote })
+        assertEquals("Semiarqueo 4 dedos · 20 mm", p.first().fullLabel)
     }
 
     @Test

@@ -20,7 +20,15 @@ data class GripSpec(
     val fingerNote: String = "",
     val type: GripType = GripType.HALF_CRIMP,
     val builtIn: Exercise? = null,
+    /** Key of the newer predefined grips (they have no legacy exercise). Not deletable either. */
+    val presetKey: String? = null,
 ) {
+    /** Predefined grips can be edited but never deleted. */
+    val isPredefined: Boolean get() = builtIn != null || presetKey != null
+
+    /** «Semiarqueo 4 dedos · 20 mm»: the name always followed by the edge, or the summary when unnamed. */
+    val fullLabel: String get() = if (name.isBlank()) summary else "${name.trim()} · $edgeMm mm"
+
     /** FREZ-like description: «20 mm / 3 dedos / drag». */
     val summary: String
         get() = buildString {
@@ -68,6 +76,20 @@ data class GripSpec(
             GripSpec(name = "Semiarqueo 4 dedos", fingerCount = 4, type = GripType.HALF_CRIMP, builtIn = Exercise.HALF_CRIMP),
             GripSpec(name = "Extensión 3 dedos", fingerCount = 3, type = GripType.DRAG, builtIn = Exercise.THREE_FINGER),
             GripSpec(name = "Semiestirado 4 dedos", fingerCount = 4, type = GripType.OPEN, builtIn = Exercise.OPEN_HAND),
+        ) + presets()
+
+        const val PRESET_PREFIX = "PRESET:"
+        const val KEY_BIDEDO_STRETCHED = "BIDEDO_ESTIRADO"
+        const val KEY_BIDEDO_CRIMP = "BIDEDO_ARQUEADO"
+        const val KEY_PISTOL = "BIDEDO_PISTOLA"
+        const val KEY_PISTOL_CRIMP = "BIDEDO_PISTOLA_ARQUEADO"
+
+        /** The four two-finger grips of the FREZ session (20 mm), also predefined. */
+        fun presets(): List<GripSpec> = listOf(
+            GripSpec(name = "Bidedo estirado", fingerCount = 2, fingerNote = "delanteros", type = GripType.DRAG, presetKey = KEY_BIDEDO_STRETCHED),
+            GripSpec(name = "Bidedo arqueado", fingerCount = 2, fingerNote = "delanteros", type = GripType.HALF_CRIMP, presetKey = KEY_BIDEDO_CRIMP),
+            GripSpec(name = "Bidedo pistola", fingerCount = 2, fingerNote = "centrales", type = GripType.DRAG, presetKey = KEY_PISTOL),
+            GripSpec(name = "Bidedo pistola arqueado", fingerCount = 2, fingerNote = "centrales", type = GripType.HALF_CRIMP, presetKey = KEY_PISTOL_CRIMP),
         )
     }
 }

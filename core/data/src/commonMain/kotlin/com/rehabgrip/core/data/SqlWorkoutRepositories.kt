@@ -102,26 +102,20 @@ class SqlWorkoutRepository(private val db: RehabGripDatabase, private val grips:
     }
 
     private fun insertSet(templateId: Long, position: Int, s: WorkoutSet) {
-        val (type, min, max) = when (val t = s.target) {
-            SetTarget.Peak -> Triple("PEAK", null, null)
-            is SetTarget.Kg -> Triple("KG", t.minKg, t.maxKg)
-            is SetTarget.PercentOfRecord -> Triple("PERCENT", t.minPercent?.toDouble(), t.maxPercent?.toDouble())
-        }
+        val (type, min, max) = encodeTarget(s.target)
+        val left = s.leftTarget?.let(::encodeTarget)
         q.insertSet(
             templateId, position.toLong(), s.reps.toLong(), s.workSeconds.toLong(), s.restSeconds.toLong(),
             (s.grip as? Grip.Standard)?.exercise?.name, (s.grip as? Grip.Library)?.grip?.id,
             type, min, max, s.toFailure.name, s.startMode.name, s.thresholdKg, s.hand.name,
+            left?.first, left?.second, left?.third, s.leftToFailure?.name,
         )
     }
 
     private fun Workout_set.toDomain(library: Map<Long, GripSpec>, byExercise: Map<Exercise?, GripSpec>): WorkoutSet {
         val exercise = enumOrNull<Exercise>(grip_exercise) ?: Exercise.HALF_CRIMP
         val grip = (grip_custom_id?.let(library::get) ?: byExercise[exercise])?.let { Grip.Library(it) } ?: Grip.Standard(exercise)
-        val target = when (target_type) {
-            "KG" -> SetTarget.Kg(target_min, target_max)
-            "PERCENT" -> SetTarget.PercentOfRecord(target_min?.toInt(), target_max?.toInt())
-            else -> SetTarget.Peak
-        }
+        val target = decodeTarget(target_type, target_min, target_max)
         return WorkoutSet(
             reps = reps.toInt(),
             workSeconds = work_s.toInt(),
@@ -132,7 +126,21 @@ class SqlWorkoutRepository(private val db: RehabGripDatabase, private val grips:
             startMode = enumOrNull<StartMode>(start_mode) ?: StartMode.TIME,
             thresholdKg = threshold_kg,
             hand = enumOrNull<SetHand>(hand) ?: SetHand.SESSION,
+            leftTarget = left_target_type?.let { decodeTarget(it, left_target_min, left_target_max) },
+            leftToFailure = enumOrNull<ToFailure>(left_to_failure),
         )
+    }
+
+    private fun encodeTarget(t: SetTarget): Triple<String, Double?, Double?> = when (t) {
+        SetTarget.Peak -> Triple("PEAK", null, null)
+        is SetTarget.Kg -> Triple("KG", t.minKg, t.maxKg)
+        is SetTarget.PercentOfRecord -> Triple("PERCENT", t.minPercent?.toDouble(), t.maxPercent?.toDouble())
+    }
+
+    private fun decodeTarget(type: String, min: Double?, max: Double?): SetTarget = when (type) {
+        "KG" -> SetTarget.Kg(min, max)
+        "PERCENT" -> SetTarget.PercentOfRecord(min?.toInt(), max?.toInt())
+        else -> SetTarget.Peak
     }
 }
 

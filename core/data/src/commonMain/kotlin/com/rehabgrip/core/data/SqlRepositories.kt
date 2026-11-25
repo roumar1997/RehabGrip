@@ -72,7 +72,7 @@ class SqlMeasurementRepository(private val db: RehabGripDatabase) : MeasurementR
     }
 
     private fun insertRow(m: Measurement): Long {
-        q.insert(m.exercise.name, m.hand.name, m.kg, m.epochMillis, m.source.name, m.note, m.gripId)
+        q.insert(m.exercise.name, m.hand.name, m.kg, m.epochMillis, m.source.name, m.note, m.gripId, m.person)
         val id = q.lastId().executeAsOne()
         m.discomforts.forEach { d.insertDiscomfort(id, it.zone.trim(), it.level.toLong()) }
         return id
@@ -82,7 +82,7 @@ class SqlMeasurementRepository(private val db: RehabGripDatabase) : MeasurementR
         val ex = enumOrNull<Exercise>(exercise) ?: return null
         val h = enumOrNull<Hand>(hand) ?: return null
         val src = enumOrNull<MeasurementSource>(source) ?: MeasurementSource.MANUAL
-        return Measurement(id, ex, h, kg, epoch_millis, src, note, gripId = grip_id)
+        return Measurement(id, ex, h, kg, epoch_millis, src, note, gripId = grip_id, person = person)
     }
 }
 

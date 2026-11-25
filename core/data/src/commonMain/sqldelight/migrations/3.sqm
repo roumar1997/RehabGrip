@@ -1,0 +1,6 @@
+-- v3 -> v4: per-hand targets in a set, and who pulled a measurement (meter mode with friends).
+ALTER TABLE workout_set ADD COLUMN left_target_type TEXT;
+ALTER TABLE workout_set ADD COLUMN left_target_min REAL;
+ALTER TABLE workout_set ADD COLUMN left_target_max REAL;
+ALTER TABLE workout_set ADD COLUMN left_to_failure TEXT;
+ALTER TABLE measurement ADD COLUMN person TEXT NOT NULL DEFAULT '';

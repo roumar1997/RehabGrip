@@ -59,7 +59,11 @@ CREATE TABLE workout_set (
     to_failure TEXT NOT NULL,
     start_mode TEXT NOT NULL,
     threshold_kg REAL NOT NULL,
-    hand TEXT NOT NULL
+    hand TEXT NOT NULL,
+    left_target_type TEXT,
+    left_target_min REAL,
+    left_target_max REAL,
+    left_to_failure TEXT
 );
 
 CREATE TABLE workout_result (
@@ -134,8 +138,8 @@ selectAllSets:
 SELECT * FROM workout_set ORDER BY template_id, position;
 
 insertSet:
-INSERT INTO workout_set(template_id, position, reps, work_s, rest_s, grip_exercise, grip_custom_id, target_type, target_min, target_max, to_failure, start_mode, threshold_kg, hand)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+INSERT INTO workout_set(template_id, position, reps, work_s, rest_s, grip_exercise, grip_custom_id, target_type, target_min, target_max, to_failure, start_mode, threshold_kg, hand, left_target_type, left_target_min, left_target_max, left_to_failure)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 deleteSetsOf:
 DELETE FROM workout_set WHERE template_id = ?;

@@ -61,7 +61,7 @@ object GripRecords {
         WorkoutEngine.buildSlots(template).mapNotNull { slot ->
             val set = template.sets[slot.setIndex]
             val grip = (set.grip as? Grip.Library)?.grip
-            if (grip != null && set.target is SetTarget.PercentOfRecord && recordKg(slot.hand, set.grip) == null) MissingBase(grip, slot.hand) else null
+            if (grip != null && set.targetFor(slot.hand) is SetTarget.PercentOfRecord && recordKg(slot.hand, set.grip) == null) MissingBase(grip, slot.hand) else null
         }.distinct()
 }
 
