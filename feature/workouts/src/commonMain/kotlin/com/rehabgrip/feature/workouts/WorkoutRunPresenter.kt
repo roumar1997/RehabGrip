@@ -1,7 +1,8 @@
 package com.rehabgrip.feature.workouts
 
 import com.rehabgrip.core.ble.ForceSource
-import com.rehabgrip.core.ble.ScaleStatus
+import com.rehabgrip.core.ble.SignalInfo
+import com.rehabgrip.core.ble.SignalMonitor
 import com.rehabgrip.core.designsystem.chart.LiveForceTrace
 import com.rehabgrip.core.domain.model.ForceSample
 import com.rehabgrip.core.domain.model.Hand
@@ -24,22 +25,31 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlin.math.round
 import kotlin.time.TimeSource
 
 data class RunState(
     val snapshot: EngineSnapshot,
-    val status: ScaleStatus = ScaleStatus.IDLE,
+    val signal: SignalInfo = SignalInfo(),
     val sourceName: String = "",
+    /** The simulated scale may start without readings; the real one needs them. */
+    val simulated: Boolean = false,
+    /** False until the user taps EMPEZAR; the 5 s «Prepárate» countdown then runs by itself. */
+    val started: Boolean = false,
+    /** Rounded to 0.1 kg and published at most ~10 times per second. */
     val currentKg: Double = 0.0,
     val zoneStatus: ZoneStatus = ZoneStatus.IN,
     val paused: Boolean = false,
     val totalSlots: Int = 0,
     val results: List<HandWorkoutResult> = emptyList(),
-)
+) {
+    val canStart: Boolean get() = simulated || signal.connected
+}
 
 /**
  * Drives a guided session: feeds the [WorkoutEngine] with the latest force every
- * tick, plays cues and accumulates [ZoneStats]. Works with the real or simulated scale.
+ * tick, plays cues and accumulates [ZoneStats]. The graph samples go to [trace] and
+ * never through the state, so the screen is not recomposed per sample.
  */
 class WorkoutRunPresenter(
     private val template: WorkoutTemplate,
@@ -51,11 +61,16 @@ class WorkoutRunPresenter(
     private val engine = WorkoutEngine(template, recordKg)
     private val stats = ZoneStats()
     private val clock = TimeSource.Monotonic.markNow()
+    private val monitor = SignalMonitor(source, scope)
     private var latestKg = 0.0
     private var lastAbove = 0L
     private var lastBelow = 0L
+    private var lastEmit = 0L
+    private var lastTick = 0L
     private val totalSlots = WorkoutEngine.buildSlots(template).size
-    private val _state = MutableStateFlow(RunState(engine.snapshot(), sourceName = source.name, totalSlots = totalSlots))
+    private val _state = MutableStateFlow(
+        RunState(engine.snapshot(), sourceName = source.name, simulated = source.isSimulated, totalSlots = totalSlots),
+    )
     val state: StateFlow<RunState> = _state.asStateFlow()
     private val jobs = mutableListOf<Job>()
 
@@ -64,18 +79,30 @@ class WorkoutRunPresenter(
 
     fun start() {
         source.start()
-        jobs += scope.launch { source.status.collect { s -> _state.update { it.copy(status = s) } } }
+        monitor.start()
+        jobs += scope.launch { monitor.state.collect { s -> _state.update { it.copy(signal = s) } } }
         jobs += scope.launch { source.readings.collect { latestKg = it.kg; trace.add(it.kg) } }
         jobs += scope.launch {
-            var last = clock.elapsedNow().inWholeMilliseconds
+            lastTick = nowMs()
             while (isActive) {
                 delay(TICK_MS)
-                val now = clock.elapsedNow().inWholeMilliseconds
-                val dt = now - last
-                last = now
-                if (!_state.value.paused) step(now, dt)
+                val now = nowMs()
+                val dt = now - lastTick
+                lastTick = now
+                val s = _state.value
+                if (s.started && !s.paused) step(now, dt)
             }
         }
+    }
+
+    private fun nowMs() = clock.elapsedNow().inWholeMilliseconds
+
+    /** EMPEZAR: only with the scale connected (or the simulated one). The 5 s countdown starts now. */
+    fun begin() {
+        val s = _state.value
+        if (s.started || !s.canStart) return
+        lastTick = nowMs()
+        _state.update { it.copy(started = true) }
     }
 
     private fun step(now: Long, dt: Long) {
@@ -89,8 +116,7 @@ class WorkoutRunPresenter(
             strength = if (snap.slot?.hand == Hand.RIGHT) SIM_RIGHT_STRENGTH else 1.0,
         )
         val zone = snap.zone
-        val sample = ForceSample(now, kg)
-        snap.slot?.let { stats.add(sample, it.hand, pulling, zone) }
+        snap.slot?.let { stats.add(ForceSample(now, kg), it.hand, pulling, zone) }
         events.forEach { e ->
             when (e) {
                 is EngineEvent.CountdownTick -> cues.countdownTick()
@@ -112,16 +138,22 @@ class WorkoutRunPresenter(
             cues.belowMin()
             lastBelow = now
         }
+        // The screen sees ~10 states per second, or right away when something changes.
+        val prev = _state.value.snapshot
+        val changed = events.isNotEmpty() || prev.phase != snap.phase || prev.slot != snap.slot
+        if (!changed && now - lastEmit < EMIT_EVERY_MS) return
+        lastEmit = now
         _state.update {
             it.copy(
                 snapshot = snap,
-                currentKg = kg,
+                currentKg = round(kg * 10) / 10,
                 zoneStatus = zs,
                 results = stats.results(),
             )
         }
     }
 
+    /** Pause is available at any time, also during the countdown. */
     fun togglePause() = _state.update { it.copy(paused = !it.paused) }
 
     fun skipTurn() {
@@ -133,11 +165,13 @@ class WorkoutRunPresenter(
 
     fun dispose() {
         jobs.forEach { it.cancel() }
+        monitor.stop()
         source.stop()
     }
 
     private companion object {
         const val TICK_MS = 50L
+        const val EMIT_EVERY_MS = 100L
         const val SIM_RIGHT_STRENGTH = 0.85
         const val ABOVE_EVERY_MS = 700L
         const val BELOW_EVERY_MS = 2_000L

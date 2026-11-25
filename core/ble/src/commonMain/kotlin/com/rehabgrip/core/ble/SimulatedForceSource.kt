@@ -27,6 +27,7 @@ class SimulatedForceSource(
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
 ) : ForceSource {
     override val name = "Báscula simulada"
+    override val isSimulated = true
     private val _status = MutableStateFlow(ScaleStatus.IDLE)
     override val status: StateFlow<ScaleStatus> = _status.asStateFlow()
     private val _readings = MutableSharedFlow<ScaleReading>(extraBufferCapacity = 64)

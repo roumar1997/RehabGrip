@@ -19,7 +19,7 @@ internal object WorkoutLabels {
             Exercise.OPEN_HAND -> "Semiestirado 4 dedos"
             Exercise.DYNAMOMETER, Exercise.CUSTOM -> Labels.exercise(g.exercise)
         }
-        is Grip.Library -> g.grip.label
+        is Grip.Library -> g.grip.fullLabel
     }
 
     fun handMode(m: HandMode) = when (m) {

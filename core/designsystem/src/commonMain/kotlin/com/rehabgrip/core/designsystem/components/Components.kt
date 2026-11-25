@@ -88,6 +88,37 @@ fun RgPrimaryButton(
     }
 }
 
+/**
+ * Compact action for a row of equal buttons: icon above, one-line label below. The label
+ * never wraps (it shrinks first), so it holds on a 360 dp screen with a large font.
+ */
+@Composable
+fun RgStackedButton(
+    text: String,
+    icon: ImageVector,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    color: Color = RgColors.Primary,
+    enabled: Boolean = true,
+) {
+    Button(
+        onClick = onClick,
+        enabled = enabled,
+        modifier = modifier.heightIn(min = 68.dp),
+        shape = RoundedCornerShape(18.dp),
+        colors = ButtonDefaults.buttonColors(containerColor = color),
+        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp),
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+            Icon(icon, contentDescription = null, modifier = Modifier.size(26.dp))
+            Text(
+                text, style = MaterialTheme.typography.labelMedium, maxLines = 1, softWrap = false,
+                overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center,
+            )
+        }
+    }
+}
+
 @Composable
 fun RgSecondaryButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, icon: ImageVector? = null) {
     OutlinedButton(

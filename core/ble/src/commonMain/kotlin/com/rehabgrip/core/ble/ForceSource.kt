@@ -14,6 +14,10 @@ data class ScaleReading(val kg: Double, val stable: Boolean)
  */
 interface ForceSource {
     val name: String
+
+    /** True for the fake scale used in debug / emulators. */
+    val isSimulated: Boolean get() = false
+
     val status: StateFlow<ScaleStatus>
     val readings: SharedFlow<ScaleReading>
     fun start()

@@ -28,13 +28,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.rehabgrip.core.ble.ScaleStatus
 import com.rehabgrip.core.designsystem.chart.LiveForceChart
 import com.rehabgrip.core.designsystem.chart.LiveForceTrace
 import com.rehabgrip.core.designsystem.components.RgCard
 import com.rehabgrip.core.designsystem.components.RgPrimaryButton
+import com.rehabgrip.core.designsystem.components.RgStackedButton
 import com.rehabgrip.core.designsystem.components.RgTopBar
 import com.rehabgrip.core.designsystem.components.formatKg
 import com.rehabgrip.core.designsystem.theme.RgColors
@@ -53,10 +54,15 @@ fun WorkoutRunScreen(
     template: WorkoutTemplate,
     state: RunState,
     trace: LiveForceTrace,
+    onBegin: () -> Unit,
     onTogglePause: () -> Unit,
     onSkip: () -> Unit,
     onFinish: () -> Unit,
 ) {
+    if (!state.started) {
+        RunIntro(template, state, onBegin, onFinish)
+        return
+    }
     val snap = state.snapshot
     val slot = snap.slot
     val phase = snap.phase
@@ -68,12 +74,19 @@ fun WorkoutRunScreen(
             else -> handColor(slot.hand).copy(alpha = 0.55f)
         },
     )
+    val set = slot?.let { template.sets[it.setIndex] }
     Column(Modifier.fillMaxSize()) {
         RgTopBar(
             if (slot == null) "Completado" else "Serie ${slot.setIndex + 1}/${template.sets.size} · Rep ${slot.rep}/${template.sets[slot.setIndex].reps}",
             onBack = onFinish,
         )
-        Column(Modifier.weight(1f).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Column(Modifier.weight(1f).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (set != null) {
+                Text(
+                    WorkoutLabels.grip(set.grip), style = MaterialTheme.typography.titleMedium, color = RgColors.Navy,
+                    maxLines = 2, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth(),
+                )
+            }
             if (snap.panels.size > 1 && phase != EnginePhase.DONE) {
                 HandColumns(snap.panels)
                 Text(
@@ -87,14 +100,14 @@ fun WorkoutRunScreen(
             ) {
                 Text(
                     if (slot == null) "¡Sesión terminada!" else "Te toca: ${handName(slot.hand)}",
-                    color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.ExtraBold,
+                    color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.ExtraBold, maxLines = 1,
                     style = MaterialTheme.typography.headlineMedium,
                 )
-                Text(phaseText(phase, state), color = Color.White, style = MaterialTheme.typography.titleLarge)
+                Text(phaseText(phase, state), color = Color.White, style = MaterialTheme.typography.titleLarge, textAlign = TextAlign.Center)
                 if (phase != EnginePhase.DONE && phase != EnginePhase.WAITING) {
                     Text(
                         "${(snap.displayMs + 999) / 1000}",
-                        color = Color.White, fontSize = 72.sp, fontWeight = FontWeight.ExtraBold,
+                        color = Color.White, fontSize = 72.sp, fontWeight = FontWeight.ExtraBold, maxLines = 1,
                         style = MaterialTheme.typography.displayLarge,
                     )
                 }
@@ -105,42 +118,64 @@ fun WorkoutRunScreen(
                     )
                 }
             }
+            FailureNotice(state, set?.thresholdKg)
             Progress(state)
             RgCard(Modifier.fillMaxWidth().weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("${formatKg(state.currentKg)} kg", style = MaterialTheme.typography.headlineMedium, color = RgColors.Navy, modifier = Modifier.weight(1f))
+                    Text("${formatKg(state.currentKg)} kg", style = MaterialTheme.typography.headlineMedium, color = RgColors.Navy, modifier = Modifier.weight(1f), maxLines = 1)
                     ZoneChip(phase, state.zoneStatus, snap.zone != null)
                 }
                 LiveForceChart(trace, Modifier.fillMaxWidth().weight(1f), zone = snap.zone)
-                if (state.status != ScaleStatus.RECEIVING) {
-                    Text("${state.sourceName}: buscando señal…", style = MaterialTheme.typography.bodySmall, color = RgColors.Warning)
+                if (!state.signal.connected) {
+                    Text(state.signal.label(), style = MaterialTheme.typography.bodySmall, color = RgColors.Warning)
                 }
             }
         }
-        Row(Modifier.padding(16.dp).navigationBarsPadding(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(
+            Modifier.padding(16.dp).navigationBarsPadding().fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
             if (phase == EnginePhase.DONE) {
                 RgPrimaryButton("Ver resumen", onFinish, color = RgColors.Success)
             } else {
-                RgPrimaryButton(
-                    if (state.paused) "Seguir" else "Pausa", onTogglePause, Modifier.weight(1f),
-                    icon = if (state.paused) Icons.Rounded.PlayArrow else Icons.Rounded.Pause,
+                RgStackedButton(
+                    if (state.paused) "Reanudar" else "Pausa", if (state.paused) Icons.Rounded.PlayArrow else Icons.Rounded.Pause,
+                    onTogglePause, Modifier.weight(1f),
                 )
-                RgPrimaryButton(
-                    "Saltar", onSkip, Modifier.weight(1f), icon = Icons.Rounded.SkipNext,
+                RgStackedButton(
+                    "Saltar", Icons.Rounded.SkipNext, onSkip, Modifier.weight(1f),
                     color = RgColors.Navy, enabled = phase != EnginePhase.PULL && phase != EnginePhase.PREPARE,
                 )
-                RgPrimaryButton("Fin", onFinish, Modifier.weight(0.8f), icon = Icons.Rounded.Stop, color = RgColors.Danger)
+                RgStackedButton("Fin", Icons.Rounded.Stop, onFinish, Modifier.weight(1f), color = RgColors.Danger)
             }
         }
     }
 }
 
-private fun phaseText(phase: EnginePhase, state: RunState): String = when (phase) {
-    EnginePhase.PREPARE -> "Prepárate"
-    EnginePhase.REST -> "Descansa"
-    EnginePhase.WAITING -> "¡Tira! El contador empieza al superar el umbral"
-    EnginePhase.PULL -> if (state.paused) "En pausa" else "¡Tira!"
-    EnginePhase.DONE -> "Buen trabajo"
+private fun phaseText(phase: EnginePhase, state: RunState): String = when {
+    state.paused -> "En pausa"
+    phase == EnginePhase.PREPARE -> "Prepárate…"
+    phase == EnginePhase.REST -> "Descansa"
+    phase == EnginePhase.WAITING -> "¡Tira! El tiempo empieza al superar el umbral"
+    phase == EnginePhase.PULL -> "¡Tira!"
+    else -> "Buen trabajo"
+}
+
+/** «Parada: fallo» after a rep that dropped under the threshold; a hint while it is dropping. */
+@Composable
+private fun FailureNotice(state: RunState, thresholdKg: Double?) {
+    val snap = state.snapshot
+    val failed = snap.phase == EnginePhase.REST && snap.results.lastOrNull()?.failed == true
+    val dropping = snap.phase == EnginePhase.PULL && thresholdKg != null && state.currentKg < thresholdKg
+    val text = when {
+        failed -> "Parada: fallo" to RgColors.Danger
+        dropping -> "Por debajo de ${formatKg(thresholdKg!!)} kg: el tiempo está parado" to RgColors.Warning
+        else -> return
+    }
+    Text(
+        text.first, color = Color.White, style = MaterialTheme.typography.labelLarge, textAlign = TextAlign.Center,
+        modifier = Modifier.fillMaxWidth().clip(CircleShape).background(text.second).padding(horizontal = 12.dp, vertical = 6.dp),
+    )
 }
 
 @Composable
@@ -162,7 +197,7 @@ private fun ZoneChip(phase: EnginePhase, status: ZoneStatus, hasZone: Boolean) {
         ZoneStatus.IN -> "En zona" to RgColors.Success
     }
     Text(
-        text, color = Color.White, style = MaterialTheme.typography.labelLarge, textAlign = TextAlign.Center,
+        text, color = Color.White, style = MaterialTheme.typography.labelLarge, textAlign = TextAlign.Center, maxLines = 1,
         modifier = Modifier.clip(CircleShape).background(color).padding(horizontal = 12.dp, vertical = 6.dp),
     )
 }

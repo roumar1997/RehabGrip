@@ -82,6 +82,7 @@ private fun WorkoutRunRoute(route: Route.WorkoutRun, container: AppContainer, na
         template = route.template,
         state = state,
         trace = presenter.trace,
+        onBegin = presenter::begin,
         onTogglePause = presenter::togglePause,
         onSkip = presenter::skipTurn,
         onFinish = { navigator.replace(Route.WorkoutSummary(route.template, presenter.results())) },
