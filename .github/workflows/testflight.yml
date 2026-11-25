@@ -120,7 +120,7 @@ jobs:
           CODE_SIGNING_ALLOWED=NO \
           PLATFORM_NAME=iphoneos \
           METAL_LIBRARY_OUTPUT_DIR=/tmp \
-          ./gradlew :shared:embedAndSignAppleFrameworkForXcode --stacktrace
+          ./gradlew :shared:embedAndSignAppleFrameworkForXcode -x :shared:syncComposeResourcesForIos --stacktrace
 
       - name: Archive (iphoneos, RELEASE, firma manual)
         env:
