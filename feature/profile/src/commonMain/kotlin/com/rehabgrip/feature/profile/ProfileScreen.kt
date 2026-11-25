@@ -54,13 +54,21 @@ import com.rehabgrip.core.designsystem.components.clickableNoRipple
 import com.rehabgrip.core.designsystem.components.formatPercent
 import com.rehabgrip.core.designsystem.illustrations.Brand
 import com.rehabgrip.core.designsystem.theme.RgColors
+import androidx.compose.material.icons.rounded.Healing
+import androidx.compose.material.icons.rounded.Notifications
+import androidx.compose.runtime.remember
+import com.rehabgrip.core.designsystem.components.InjuryForm
+import com.rehabgrip.core.domain.model.Injury
 
 data class ProfileUiState(
     val name: String,
-    val rightImprovementPercent: Double?,
-    val rightVsLeftPercent: Double?,
+    /** Improvement of the injured hand (right when none) in half crimp. */
+    val focusImprovementPercent: Double?,
+    /** Injured as % of healthy (right vs left when none). */
+    val symmetryPercent: Double?,
     val simulatedScale: Boolean,
     val showDeveloperOptions: Boolean,
+    val injury: Injury = Injury.NONE,
 )
 
 /** "Perfil y configuración". */
@@ -70,6 +78,8 @@ fun ProfileScreen(
     onRename: (String) -> Unit,
     onSimulatedScale: (Boolean) -> Unit,
     onLoadSampleData: () -> Unit,
+    onInjury: (Injury) -> Unit = {},
+    onReminders: () -> Unit = {},
 ) {
     var dialog by rememberSaveable { mutableStateOf<String?>(null) }
     Column(Modifier.fillMaxSize()) {
@@ -86,17 +96,21 @@ fun ProfileScreen(
                     Spacer(Modifier.width(16.dp))
                     Column(Modifier.weight(1f)) {
                         Text(state.name, style = MaterialTheme.typography.headlineSmall, color = RgColors.Navy)
-                        Text("Tu progreso (mano derecha)", style = MaterialTheme.typography.bodySmall, color = RgColors.TextSecondary)
+                        Text(
+                            if (state.injury.hand == null) "Tu progreso (mano derecha)" else "Tu progreso (mano lesionada)",
+                            style = MaterialTheme.typography.bodySmall, color = RgColors.TextSecondary,
+                        )
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Rounded.EmojiEvents, null, tint = RgColors.Gold, modifier = Modifier.size(26.dp))
                             Spacer(Modifier.width(6.dp))
                             Text(
-                                state.rightImprovementPercent?.let(::formatPercent) ?: "—",
+                                state.focusImprovementPercent?.let(::formatPercent) ?: "—",
                                 style = MaterialTheme.typography.headlineMedium, color = Color(0xFF1E8A55),
                             )
                         }
                         Text(
-                            "Desde el inicio · Dcha/Izda ${state.rightVsLeftPercent?.let { formatPercent(it, false) } ?: "—"}",
+                            "Desde el inicio · ${if (state.injury.hand == null) "Dcha/Izda" else "Lesionada/sana"} " +
+                                (state.symmetryPercent?.let { formatPercent(it, false) } ?: "—"),
                             style = MaterialTheme.typography.bodySmall, color = RgColors.TextSecondary,
                         )
                     }
@@ -104,6 +118,10 @@ fun ProfileScreen(
             }
             RgCard(Modifier.fillMaxWidth(), padding = PaddingValues(horizontal = 16.dp, vertical = 4.dp)) {
                 Option(Icons.Rounded.Badge, "Cambiar nombre") { dialog = DIALOG_NAME }
+                HorizontalDivider(color = RgColors.Outline)
+                Option(Icons.Rounded.Healing, "Mano y dedos lesionados") { dialog = DIALOG_INJURY }
+                HorizontalDivider(color = RgColors.Outline)
+                Option(Icons.Rounded.Notifications, "Recordatorios", onReminders)
                 HorizontalDivider(color = RgColors.Outline)
                 Option(Icons.Rounded.Lightbulb, "Información y consejos") { dialog = DIALOG_TIPS }
                 HorizontalDivider(color = RgColors.Outline)
@@ -128,6 +146,7 @@ fun ProfileScreen(
         }
     }
     when (dialog) {
+        DIALOG_INJURY -> InjuryDialog(state.injury, { dialog = null }) { onInjury(it); dialog = null }
         DIALOG_NAME -> RenameDialog(state.name, { dialog = null }) { onRename(it); dialog = null }
         DIALOG_TIPS -> InfoDialog("Información y consejos", TIPS) { dialog = null }
         DIALOG_ABOUT -> InfoDialog("Acerca de RehabGrip", ABOUT) { dialog = null }
@@ -188,6 +207,19 @@ private const val DIALOG_NAME = "name"
 private const val DIALOG_TIPS = "tips"
 private const val DIALOG_ABOUT = "about"
 private const val DIALOG_SAMPLE = "sample"
+private const val DIALOG_INJURY = "injury"
+
+@Composable
+private fun InjuryDialog(current: Injury, onDismiss: () -> Unit, onSave: (Injury) -> Unit) {
+    var injury by remember { mutableStateOf(current) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = RgColors.Background,
+        text = { InjuryForm(injury, { injury = it }) },
+        confirmButton = { TextButton(onClick = { onSave(injury) }) { Text("Guardar") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } },
+    )
+}
 
 private val TIPS = """
     • Mide siempre en las mismas condiciones: misma regleta de 20 mm, mismo calentamiento y a una hora parecida.

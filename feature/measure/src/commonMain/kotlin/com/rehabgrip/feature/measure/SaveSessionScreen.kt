@@ -35,6 +35,9 @@ import com.rehabgrip.core.designsystem.components.RgTopBar
 import com.rehabgrip.core.designsystem.components.formatKg
 import com.rehabgrip.core.designsystem.theme.RgColors
 import com.rehabgrip.core.domain.model.Exercise
+import androidx.compose.runtime.remember
+import com.rehabgrip.core.designsystem.components.DiscomfortEditor
+import com.rehabgrip.core.domain.model.Discomfort
 import com.rehabgrip.core.domain.model.Hand
 import com.rehabgrip.core.domain.session.Attempt
 
@@ -46,8 +49,10 @@ fun SaveSessionScreen(
     attempts: List<Attempt>,
     sessionPeakKg: Double,
     onBack: () -> Unit,
-    onSave: (kg: Double, note: String) -> Unit,
+    onSave: (kg: Double, note: String, discomforts: List<Discomfort>) -> Unit,
+    recentZones: List<String> = emptyList(),
 ) {
+    var discomforts by remember { mutableStateOf(emptyList<Discomfort>()) }
     val options = attempts.ifEmpty { listOf(Attempt(1, 0, 0, sessionPeakKg)) }
     val best = options.maxBy { it.peakKg }
     var selected by rememberSaveable { mutableStateOf(best.index) }
@@ -86,15 +91,15 @@ fun SaveSessionScreen(
                     value = note,
                     onValueChange = { note = it.take(120) },
                     label = { Text("Notas (opcional)") },
-                    placeholder = { Text("Sin molestias") },
                     shape = RoundedCornerShape(16.dp),
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
+            item { DiscomfortEditor(discomforts, { discomforts = it }, recentZones, hand) }
         }
         RgPrimaryButton(
             "Guardar ${formatKg(options.first { it.index == selected }.peakKg)} kg",
-            { onSave(options.first { it.index == selected }.peakKg, note) },
+            { onSave(options.first { it.index == selected }.peakKg, note, discomforts) },
             Modifier.padding(16.dp).navigationBarsPadding(),
             icon = Icons.Rounded.Save,
         )

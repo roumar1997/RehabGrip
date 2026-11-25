@@ -37,6 +37,8 @@ import com.rehabgrip.core.designsystem.illustrations.GripIllustrations
 import com.rehabgrip.core.designsystem.theme.RgColors
 import com.rehabgrip.core.domain.model.Exercise
 import com.rehabgrip.core.domain.model.Hand
+import com.rehabgrip.core.domain.model.Injury
+import com.rehabgrip.core.designsystem.components.SymmetryOverview
 import com.rehabgrip.core.domain.model.Measurement
 
 /** Home: "Mis ejercicios". Shows the latest value per hand under each exercise. */
@@ -44,6 +46,8 @@ import com.rehabgrip.core.domain.model.Measurement
 fun ExercisesScreen(
     userName: String,
     measurements: List<Measurement>,
+    injury: Injury,
+    nowMillis: Long,
     onExercise: (Exercise) -> Unit,
 ) {
     Column(Modifier.fillMaxSize()) {
@@ -58,22 +62,27 @@ fun ExercisesScreen(
                     style = MaterialTheme.typography.headlineSmall,
                     color = RgColors.Navy,
                 )
+            }
+            if (measurements.isNotEmpty()) {
+                item { SymmetryOverview(measurements, injury, nowMillis, onExercise = onExercise) }
+            }
+            item {
                 Text(
                     "Elige un ejercicio para registrar tu fuerza",
                     style = MaterialTheme.typography.bodyMedium,
                     color = RgColors.TextSecondary,
-                    modifier = Modifier.padding(bottom = 4.dp),
+                    modifier = Modifier.padding(top = 4.dp),
                 )
             }
             items(Exercise.entries) { exercise ->
-                ExerciseCard(exercise, measurements.filter { it.exercise == exercise }) { onExercise(exercise) }
+                ExerciseCard(exercise, measurements.filter { it.exercise == exercise }, injury) { onExercise(exercise) }
             }
         }
     }
 }
 
 @Composable
-private fun ExerciseCard(exercise: Exercise, history: List<Measurement>, onClick: () -> Unit) {
+private fun ExerciseCard(exercise: Exercise, history: List<Measurement>, injury: Injury, onClick: () -> Unit) {
     RgCard(Modifier.fillMaxWidth(), onClick = onClick, padding = PaddingValues(10.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Image(
@@ -91,8 +100,8 @@ private fun ExerciseCard(exercise: Exercise, history: List<Measurement>, onClick
                         if (exercise.usesScale) Icons.Rounded.Bluetooth else Icons.Rounded.EditNote,
                         null, tint = RgColors.Primary, modifier = Modifier.size(16.dp),
                     )
-                    LastValue(Hand.RIGHT, history)
-                    LastValue(Hand.LEFT, history)
+                    LastValue(Hand.RIGHT, history, injury)
+                    LastValue(Hand.LEFT, history, injury)
                 }
             }
             Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, null, tint = RgColors.TextSecondary)
@@ -101,9 +110,9 @@ private fun ExerciseCard(exercise: Exercise, history: List<Measurement>, onClick
 }
 
 @Composable
-private fun LastValue(hand: Hand, history: List<Measurement>) {
+private fun LastValue(hand: Hand, history: List<Measurement>, injury: Injury) {
     val last = history.filter { it.hand == hand }.maxByOrNull { it.epochMillis } ?: return
-    val color = if (hand == Hand.RIGHT) RgColors.RightHand else RgColors.LeftHand
+    val color = if (hand == injury.hand) RgColors.Danger else if (hand == Hand.RIGHT) RgColors.RightHand else RgColors.LeftHand
     Text(
         "${Labels.handShort(hand)} ${formatKg(last.kg)}",
         style = MaterialTheme.typography.labelSmall,

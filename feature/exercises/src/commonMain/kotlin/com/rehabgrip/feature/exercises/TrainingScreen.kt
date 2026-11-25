@@ -41,7 +41,9 @@ import com.rehabgrip.core.designsystem.components.formatKg
 import com.rehabgrip.core.designsystem.illustrations.GripIllustrations
 import com.rehabgrip.core.designsystem.theme.RgColors
 import com.rehabgrip.core.domain.model.Exercise
+import com.rehabgrip.core.domain.model.Discomfort
 import com.rehabgrip.core.domain.model.Hand
+import com.rehabgrip.core.domain.model.Injury
 import com.rehabgrip.core.domain.model.Measurement
 
 /** "Entrenamiento": choose hand, then connect the scale or type the value. */
@@ -51,9 +53,11 @@ fun TrainingScreen(
     history: List<Measurement>,
     onBack: () -> Unit,
     onConnectScale: (Hand) -> Unit,
-    onManualSave: (hand: Hand, kg: Double, note: String) -> Unit,
+    onManualSave: (hand: Hand, kg: Double, note: String, discomforts: List<Discomfort>) -> Unit,
+    injury: Injury = Injury.NONE,
+    recentZones: List<String> = emptyList(),
 ) {
-    var hand by rememberSaveable { mutableStateOf(Hand.RIGHT) }
+    var hand by rememberSaveable { mutableStateOf(injury.focusHand) }
     var showManual by rememberSaveable { mutableStateOf(false) }
     val mine = history.filter { it.exercise == exercise && it.hand == hand }
     Column(Modifier.fillMaxSize()) {
@@ -77,9 +81,9 @@ fun TrainingScreen(
             RgSegmented(
                 options = Hand.entries,
                 selected = hand,
-                label = { "Mano ${Labels.hand(it).lowercase()}" },
+                label = { if (it == injury.hand) "${Labels.hand(it)} · lesionada" else "Mano ${Labels.hand(it).lowercase()}" },
                 onSelect = { hand = it },
-                colorFor = { if (it == Hand.RIGHT) RgColors.RightHand else RgColors.PrimaryDark },
+                colorFor = { if (it == injury.hand) RgColors.Danger else RgColors.Primary },
             )
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 RgStat(
@@ -108,10 +112,12 @@ fun TrainingScreen(
     if (showManual) {
         ManualEntryDialog(
             title = "${Labels.exercise(exercise)} · ${Labels.hand(hand)}",
+            hand = hand,
+            recentZones = recentZones,
             onDismiss = { showManual = false },
-            onSave = { kg, note ->
+            onSave = { kg, note, discomforts ->
                 showManual = false
-                onManualSave(hand, kg, note)
+                onManualSave(hand, kg, note, discomforts)
             },
         )
     }

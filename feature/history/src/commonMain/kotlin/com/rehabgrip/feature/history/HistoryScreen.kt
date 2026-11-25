@@ -48,6 +48,8 @@ import com.rehabgrip.core.designsystem.components.RgSegmented
 import com.rehabgrip.core.designsystem.components.RgTopBar
 import com.rehabgrip.core.designsystem.components.clickableNoRipple
 import com.rehabgrip.core.designsystem.components.formatKg
+import com.rehabgrip.core.designsystem.components.discomfortColor
+import com.rehabgrip.core.domain.workout.WorkoutResultEntry
 import com.rehabgrip.core.designsystem.theme.RgColors
 import com.rehabgrip.core.domain.model.Exercise
 import com.rehabgrip.core.domain.model.Hand
@@ -67,7 +69,9 @@ fun HistoryScreen(
     measurements: List<Measurement>,
     onExport: (List<Measurement>) -> Unit,
     onDelete: (Long) -> Unit,
+    workouts: List<WorkoutResultEntry> = emptyList(),
 ) {
+    var showWorkouts by rememberSaveable { mutableStateOf(false) }
     var handFilter by rememberSaveable { mutableStateOf(HandFilter.ALL) }
     var exerciseFilter by rememberSaveable { mutableStateOf<Exercise?>(null) }
     var showFilters by rememberSaveable { mutableStateOf(true) }
@@ -81,6 +85,14 @@ fun HistoryScreen(
             IconButton(onClick = { showFilters = !showFilters }) {
                 Icon(Icons.Rounded.FilterList, "Filtrar", tint = RgColors.Navy)
             }
+        }
+        RgSegmented(
+            listOf(false, true), showWorkouts, { if (it) "Entrenamientos" else "Registros" }, { showWorkouts = it },
+            Modifier.padding(horizontal = 16.dp).padding(bottom = 8.dp), colorFor = { RgColors.Navy },
+        )
+        if (showWorkouts) {
+            WorkoutResultsList(workouts, Modifier.weight(1f))
+            return@Column
         }
         if (showFilters) {
             Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -146,6 +158,9 @@ private fun HistoryRow(m: Measurement, onDelete: () -> Unit) {
                     )
                 }
                 if (m.note.isNotBlank()) Text(m.note, style = MaterialTheme.typography.bodySmall, color = RgColors.TextSecondary)
+                m.discomforts.forEach { d ->
+                    Text("• ${d.zone}: ${d.level}/10", style = MaterialTheme.typography.bodySmall, color = discomfortColor(d.level))
+                }
             }
             Text("${formatKg(m.kg)} kg", style = MaterialTheme.typography.titleMedium, color = RgColors.Navy)
             IconButton(onClick = onDelete) { Icon(Icons.Outlined.DeleteOutline, "Borrar", tint = RgColors.TextSecondary) }

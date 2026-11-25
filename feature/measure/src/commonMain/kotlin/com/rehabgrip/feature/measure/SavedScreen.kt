@@ -20,6 +20,7 @@ import androidx.compose.material.icons.rounded.BarChart
 import androidx.compose.material.icons.rounded.CalendarMonth
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.FitnessCenter
+import androidx.compose.material.icons.rounded.Healing
 import androidx.compose.material.icons.rounded.PanTool
 import androidx.compose.material.icons.rounded.StickyNote2
 import androidx.compose.material3.HorizontalDivider
@@ -50,6 +51,7 @@ fun SavedScreen(
     hand: Hand,
     kg: Double,
     note: String,
+    discomforts: List<com.rehabgrip.core.domain.model.Discomfort> = emptyList(),
     dateText: String,
     onAccept: () -> Unit,
 ) {
@@ -78,6 +80,10 @@ fun SavedScreen(
                 Line(Icons.Rounded.BarChart, "Máximo", "${formatKg(kg)} kg")
                 HorizontalDivider(color = RgColors.Outline)
                 Line(Icons.Rounded.StickyNote2, "Notas", note.ifBlank { "—" })
+                if (discomforts.isNotEmpty()) {
+                    HorizontalDivider(color = RgColors.Outline)
+                    Line(Icons.Rounded.Healing, "Molestias", discomforts.joinToString("\n") { "${it.zone}: ${it.level}/10" })
+                }
             }
             Text(
                 "Tu progreso se guardará y podrás verlo en las gráficas.",

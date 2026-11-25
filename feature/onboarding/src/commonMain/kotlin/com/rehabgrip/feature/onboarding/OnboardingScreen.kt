@@ -40,15 +40,20 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.runtime.remember
+import com.rehabgrip.core.designsystem.components.InjuryForm
 import com.rehabgrip.core.designsystem.components.RgPrimaryButton
+import com.rehabgrip.core.domain.model.Hand
+import com.rehabgrip.core.domain.model.Injury
 import com.rehabgrip.core.designsystem.illustrations.Brand
 import com.rehabgrip.core.designsystem.theme.RgColors
 
 /** First launch: welcome, then ask for the user's name (no login, local only). */
 @Composable
-fun OnboardingScreen(onNameConfirmed: (String) -> Unit) {
+fun OnboardingScreen(onFinished: (name: String, injury: Injury) -> Unit) {
     var step by rememberSaveable { mutableStateOf(0) }
     var name by rememberSaveable { mutableStateOf("") }
+    var injury by remember { mutableStateOf(Injury(Hand.RIGHT)) }
     Box(
         Modifier.fillMaxSize().background(
             Brush.verticalGradient(listOf(Color(0xFFF4F8FE), Color(0xFFDCE9FA), Color(0xFFB9D3F3))),
@@ -75,8 +80,21 @@ fun OnboardingScreen(onNameConfirmed: (String) -> Unit) {
                 textAlign = TextAlign.Center,
             )
             Spacer(Modifier.height(36.dp))
-            if (step == 0) WelcomeStep { step = 1 } else NameStep(name, { name = it }) {
-                if (name.isNotBlank()) onNameConfirmed(name.trim())
+            when (step) {
+                0 -> WelcomeStep { step = 1 }
+                1 -> NameStep(name, { name = it }) { if (name.isNotBlank()) step = 2 }
+                else -> Column(
+                    Modifier.widthIn(max = 420.dp).background(Color.White.copy(alpha = 0.9f), RoundedCornerShape(24.dp)).padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    InjuryForm(injury, { injury = it })
+                    Text(
+                        "La app comparará siempre la mano lesionada con la sana. Puedes cambiarlo en Perfil.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = RgColors.TextSecondary,
+                    )
+                    RgPrimaryButton("Empezar", { onFinished(name.trim(), injury) }, icon = Icons.Rounded.Check)
+                }
             }
             Spacer(Modifier.height(120.dp))
         }
@@ -119,7 +137,7 @@ private fun NameStep(name: String, onName: (String) -> Unit, onConfirm: () -> Un
             keyboardActions = KeyboardActions(onDone = { onConfirm() }),
             modifier = Modifier.fillMaxWidth(),
         )
-        RgPrimaryButton("Empezar", onConfirm, enabled = name.isNotBlank(), icon = Icons.Rounded.Check)
+        RgPrimaryButton("Siguiente", onConfirm, enabled = name.isNotBlank(), icon = Icons.AutoMirrored.Rounded.ArrowForward)
     }
 }
 

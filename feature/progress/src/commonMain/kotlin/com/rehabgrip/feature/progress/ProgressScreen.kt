@@ -55,13 +55,18 @@ import com.rehabgrip.core.domain.progress.HandProgress
 import com.rehabgrip.core.domain.progress.ProgressCalculator
 import com.rehabgrip.core.domain.progress.ProgressRange
 import com.rehabgrip.core.domain.progress.ProgressSummary
+import com.rehabgrip.core.domain.progress.DayPoint
+import com.rehabgrip.core.domain.model.Injury
+import com.rehabgrip.core.designsystem.components.InjuryLabels
+import com.rehabgrip.core.designsystem.components.SymmetryOverview
 import kotlinx.datetime.LocalDate
 
 /** "Evolución": right vs left over the chosen range, adapted to the days trained. */
 @Composable
-fun ProgressScreen(measurements: List<Measurement>, nowMillis: Long) {
+fun ProgressScreen(measurements: List<Measurement>, nowMillis: Long, injury: Injury = Injury.NONE) {
     var exercise by rememberSaveable { mutableStateOf(Exercise.HALF_CRIMP) }
     var range by rememberSaveable { mutableStateOf(ProgressRange.ALL) }
+    var view by rememberSaveable { mutableStateOf(ProgressView.COMPARE) }
     val calculator = remember { ProgressCalculator() }
     val summary = remember(measurements, exercise, range, nowMillis) {
         calculator.summarize(measurements, exercise, range, nowMillis)
@@ -72,24 +77,36 @@ fun ProgressScreen(measurements: List<Measurement>, nowMillis: Long) {
             Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 16.dp).padding(bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            RgSegmented(ProgressView.entries, view, { it.label }, { view = it }, colorFor = { RgColors.Navy })
             RgSegmented(
                 ProgressRange.entries, range,
                 label = { when (it) { ProgressRange.WEEK -> "7d"; ProgressRange.FOUR_WEEKS -> "4s"; ProgressRange.TWELVE_WEEKS -> "12s"; ProgressRange.ALL -> "Todo" } },
                 onSelect = { range = it },
             )
-            ExercisePicker(exercise) { exercise = it }
-            ChartCard(summary, range, nowMillis)
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                HandCard(summary.right, Modifier.weight(1f))
-                HandCard(summary.left, Modifier.weight(1f))
+            when (view) {
+                ProgressView.COMPARE -> {
+                    SymmetryOverview(measurements, injury, nowMillis, onExercise = { exercise = it })
+                    ExercisePicker(exercise) { exercise = it }
+                    ComparisonCard(summary, injury)
+                }
+                ProgressView.HANDS -> {
+                    ExercisePicker(exercise) { exercise = it }
+                    ChartCard(summary, range, nowMillis)
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        HandCard(summary.of(injury.focusHand), Modifier.weight(1f), injury)
+                        HandCard(summary.of(injury.focusHand.other), Modifier.weight(1f), injury)
+                    }
+                }
+                ProgressView.DISCOMFORT -> DiscomfortView(measurements, range, nowMillis)
             }
-            SymmetryCard(summary)
         }
     }
 }
 
+private enum class ProgressView(val label: String) { COMPARE("Lesionada vs sana"), HANDS("Por mano"), DISCOMFORT("Molestias") }
+
 @Composable
-private fun ExercisePicker(selected: Exercise, onSelect: (Exercise) -> Unit) {
+internal fun ExercisePicker(selected: Exercise, onSelect: (Exercise) -> Unit) {
     Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         Exercise.entries.forEach { e ->
             val sel = e == selected
@@ -151,13 +168,13 @@ private fun Legend(text: String, color: Color) = Row(verticalAlignment = Alignme
 }
 
 @Composable
-private fun HandCard(p: HandProgress, modifier: Modifier) {
+private fun HandCard(p: HandProgress, modifier: Modifier, injury: Injury) {
     val color = if (p.hand == Hand.RIGHT) RgColors.RightHand else RgColors.LeftHand
     RgCard(modifier) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(10.dp).clip(CircleShape).background(color))
             Spacer(Modifier.width(6.dp))
-            Text(Labels.hand(p.hand), style = MaterialTheme.typography.labelMedium, color = RgColors.TextSecondary)
+            Text(InjuryLabels.handRole(p.hand, injury), style = MaterialTheme.typography.labelMedium, color = if (p.hand == injury.hand) RgColors.Danger else RgColors.TextSecondary)
         }
         Text(p.lastKg?.let { "${formatKg(it)} kg" } ?: "—", style = MaterialTheme.typography.headlineSmall, color = RgColors.Navy)
         Text("Mejor: ${p.bestKg?.let { formatKg(it) + " kg" } ?: "—"}", style = MaterialTheme.typography.bodySmall, color = RgColors.TextSecondary)
@@ -174,28 +191,8 @@ private fun HandCard(p: HandProgress, modifier: Modifier) {
     }
 }
 
-@Composable
-private fun SymmetryCard(summary: ProgressSummary) {
-    val ratio = summary.rightVsLeftPercent
-    RgCard(Modifier.fillMaxWidth(), color = RgColors.SuccessBg) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Rounded.Balance, null, tint = RgColors.Success, modifier = Modifier.size(28.dp))
-            Spacer(Modifier.width(12.dp))
-            Text(
-                ratio?.let { formatPercent(it, signed = false) } ?: "—",
-                style = MaterialTheme.typography.headlineSmall, color = Color(0xFF1E8A55),
-            )
-            Spacer(Modifier.width(12.dp))
-            Text(
-                "Fuerza de la derecha respecto a la izquierda (último registro)",
-                style = MaterialTheme.typography.bodyMedium, color = RgColors.Navy, modifier = Modifier.weight(1f),
-            )
-        }
-    }
-}
-
 /** Maps day points to chart x fractions between the first day shown and today. */
-private class ChartAxis(val right: List<Pair<Float, Float>>, val left: List<Pair<Float, Float>>, val labels: List<String>) {
+internal class ChartAxis(val right: List<Pair<Float, Float>>, val left: List<Pair<Float, Float>>, val labels: List<String>) {
     companion object {
         fun build(s: ProgressSummary, range: ProgressRange, nowMillis: Long): ChartAxis? {
             val days = (s.right.points + s.left.points).map { it.date }
@@ -206,6 +203,17 @@ private class ChartAxis(val right: List<Pair<Float, Float>>, val left: List<Pair
             fun pts(p: HandProgress) = p.points.map { ((it.date.toEpochDays() - first.toEpochDays()).toFloat() / span) to it.kg.toFloat() }
             val labels = (0..3).map { i -> LocalDate.fromEpochDays(first.toEpochDays() + span * i / 3).short() }
             return ChartAxis(pts(s.right), pts(s.left), labels)
+        }
+
+        /** Generic: x fraction from the first to the last date among [series]. */
+        fun fractions(series: List<List<DayPoint>>): Pair<List<List<Pair<Float, Float>>>, List<String>>? {
+            val days = series.flatten().map { it.date }
+            if (days.isEmpty()) return null
+            val first = days.min()
+            val span = (days.max().toEpochDays() - first.toEpochDays()).coerceAtLeast(1)
+            val pts = series.map { s -> s.map { ((it.date.toEpochDays() - first.toEpochDays()).toFloat() / span) to it.kg.toFloat() } }
+            val labels = (0..3).map { i -> LocalDate.fromEpochDays(first.toEpochDays() + span * i / 3).short() }
+            return pts to labels
         }
 
         private fun LocalDate.short() = "${dayOfMonth}/${monthNumber}"

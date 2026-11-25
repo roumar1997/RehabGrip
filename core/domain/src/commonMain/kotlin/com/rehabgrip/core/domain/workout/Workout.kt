@@ -40,13 +40,31 @@ sealed interface SetTarget {
     /** «Umbral basado en registro»: % of the last record of that hand and grip. */
     data class PercentOfRecord(val minPercent: Int?, val maxPercent: Int?) : SetTarget
 
+    /** Null when there is no usable band (none set, inverted, or no record yet). */
     fun resolve(recordKg: Double?): TargetZone? = when (this) {
         Peak -> null
-        is Kg -> if (minKg == null && maxKg == null) null else TargetZone(minKg, maxKg)
+        is Kg -> zoneOrNull(minKg, maxKg)
         is PercentOfRecord -> recordKg?.takeIf { it > 0 }?.let { r ->
-            TargetZone(minPercent?.let { r * it / 100.0 }, maxPercent?.let { r * it / 100.0 })
+            zoneOrNull(minPercent?.let { r * it / 100.0 }, maxPercent?.let { r * it / 100.0 })
         }
     }
+
+    /** Problem text for the editor, or null when the band is valid. */
+    fun problem(): String? {
+        val (min, max) = when (this) {
+            Peak -> return null
+            is Kg -> minKg to maxKg
+            is PercentOfRecord -> minPercent?.toDouble() to maxPercent?.toDouble()
+        }
+        return when {
+            min == null && max == null -> "pon mínimo o máximo"
+            min != null && max != null && min >= max -> "el mínimo debe ser menor que el máximo"
+            else -> null
+        }
+    }
+
+    private fun zoneOrNull(min: Double?, max: Double?): TargetZone? =
+        if ((min == null && max == null) || (min != null && max != null && min >= max)) null else TargetZone(min, max)
 }
 
 /** «Hasta el fallo». */
@@ -101,6 +119,7 @@ data class WorkoutTemplate(
             if (s.workSeconds !in 1..300) add("Serie $n: tirar entre 1 y 300 s")
             if (s.restSeconds !in 0..1800) add("Serie $n: descanso entre 0 y 1800 s")
             if (s.thresholdKg !in 0.5..50.0) add("Serie $n: umbral entre 0,5 y 50 kg")
+            s.target.problem()?.let { add("Serie $n: $it") }
         }
     }
 

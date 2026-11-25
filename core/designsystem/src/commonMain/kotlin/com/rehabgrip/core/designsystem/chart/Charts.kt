@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.sp
 import com.rehabgrip.core.designsystem.components.formatKg
 import com.rehabgrip.core.designsystem.theme.RgColors
 import com.rehabgrip.core.domain.model.ForceSample
+import com.rehabgrip.core.domain.workout.TargetZone
 import kotlin.math.ceil
 import kotlin.math.max
 
@@ -75,13 +76,20 @@ fun LineChart(series: List<ChartSeries>, xLabels: List<String>, modifier: Modifi
  * session maximum marked with a bubble.
  */
 @Composable
-fun LiveForceChart(samples: List<ForceSample>, peak: ForceSample?, modifier: Modifier = Modifier, windowMs: Long = 10_000) {
+fun LiveForceChart(
+    samples: List<ForceSample>,
+    peak: ForceSample?,
+    modifier: Modifier = Modifier,
+    windowMs: Long = 10_000,
+    zone: TargetZone? = null,
+) {
     val measurer = rememberTextMeasurer()
     Canvas(modifier) {
         val last = samples.lastOrNull()?.tMillis ?: 0L
         val start = max(0L, last - windowMs)
         val visible = samples.filter { it.tMillis >= start }
-        val yMax = niceMax(max(20f, (peak?.kg?.toFloat() ?: 0f) * 1.15f), 20f)
+        val zoneTop = (zone?.maxKg ?: zone?.minKg ?: 0.0).toFloat()
+        val yMax = niceMax(max(max(20f, zoneTop * 1.25f), (peak?.kg?.toFloat() ?: 0f) * 1.15f), 20f)
         val left = 34.dp2px(this)
         val bottom = size.height - 22.dp2px(this)
         val top = 30.dp2px(this)
@@ -90,6 +98,7 @@ fun LiveForceChart(samples: List<ForceSample>, peak: ForceSample?, modifier: Mod
         fun y(v: Float) = bottom - v / yMax * (bottom - top)
 
         drawYGrid(measurer, 0f, yMax, left, right, ::y, step = yMax / 3f)
+        if (zone != null) drawZone(zone, left, right, top, bottom, ::y)
         listOf(0L, windowMs / 2, windowMs).forEach { dt ->
             val label = "${(start + dt) / 1000}s"
             val layout = measurer.measure(label, axisStyle)
@@ -113,6 +122,16 @@ fun LiveForceChart(samples: List<ForceSample>, peak: ForceSample?, modifier: Mod
         val mark = peak?.takeIf { it.tMillis >= start } ?: visible.maxBy { it.kg }.takeIf { it.kg > 0.5 }
         if (mark != null) drawPeak(measurer, Offset(x(mark.tMillis), y(mark.kg.toFloat())), bottom, mark.kg)
     }
+}
+
+/** Target band (green) between min and max, with dashed limit lines. */
+private fun DrawScope.drawZone(zone: TargetZone, left: Float, right: Float, top: Float, bottom: Float, y: (Float) -> Float) {
+    val yTop = zone.maxKg?.let { y(it.toFloat()) } ?: top
+    val yBottom = zone.minKg?.let { y(it.toFloat()) } ?: bottom
+    drawRect(RgColors.Success.copy(alpha = 0.14f), Offset(left, yTop), Size(right - left, yBottom - yTop))
+    val dash = PathEffect.dashPathEffect(floatArrayOf(14f, 10f))
+    zone.maxKg?.let { drawLine(RgColors.Danger, Offset(left, yTop), Offset(right, yTop), 2.5f.dp2px(this), pathEffect = dash) }
+    zone.minKg?.let { drawLine(RgColors.Warning, Offset(left, yBottom), Offset(right, yBottom), 2.5f.dp2px(this), pathEffect = dash) }
 }
 
 private fun DrawScope.drawPeak(measurer: TextMeasurer, at: Offset, bottom: Float, kg: Double) {
