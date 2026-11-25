@@ -63,3 +63,10 @@ class ZoneStats {
         const val MAX_GAP_MS = 500L
     }
 }
+
+/** A finished guided session as stored in history. */
+data class WorkoutResultEntry(
+    val name: String,
+    val epochMillis: Long,
+    val hands: List<HandWorkoutResult>,
+)

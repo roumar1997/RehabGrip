@@ -1,5 +1,6 @@
 package com.rehabgrip.core.data
 
+import com.rehabgrip.core.domain.model.Discomfort
 import com.rehabgrip.core.domain.model.Exercise
 import com.rehabgrip.core.domain.model.Hand
 import com.rehabgrip.core.domain.model.Measurement
@@ -29,17 +30,23 @@ object SampleData {
                 val rightRatio = 0.55 + 0.25 * progress
                 listOf(
                     m(exercise, Hand.LEFT, left * (0.98 + random.nextDouble() * 0.05), at),
-                    m(exercise, Hand.RIGHT, left * rightRatio * (0.97 + random.nextDouble() * 0.05), at + 60_000),
+                    m(exercise, Hand.RIGHT, left * rightRatio * (0.97 + random.nextDouble() * 0.05), at + 60_000, progress),
                 )
             }
         }
 
-    private fun m(exercise: Exercise, hand: Hand, kg: Double, at: Long) = Measurement(
+    private fun m(exercise: Exercise, hand: Hand, kg: Double, at: Long, progress: Double = 0.0) = Measurement(
         exercise = exercise,
         hand = hand,
         kg = kotlin.math.round(kg * 10) / 10.0,
         epochMillis = at,
         source = if (exercise.usesScale) MeasurementSource.SCALE else MeasurementSource.MANUAL,
-        note = if (hand == Hand.RIGHT && exercise == Exercise.HALF_CRIMP) "Sin molestias" else "",
+        discomforts = if (hand == Hand.RIGHT && exercise == Exercise.HALF_CRIMP) sampleDiscomforts(progress) else emptyList(),
+    )
+
+    /** Wrist scar settling down and an A2 pulley that stops bothering. */
+    private fun sampleDiscomforts(progress: Double): List<Discomfort> = listOfNotNull(
+        Discomfort("Cicatriz dcha", (5 - 4 * progress).toInt().coerceIn(0, 10)),
+        Discomfort("Polea A2 anular dcha", (3 - 3 * progress).toInt()).takeIf { progress < 0.9 },
     )
 }

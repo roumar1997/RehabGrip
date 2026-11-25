@@ -1,7 +1,12 @@
 package com.rehabgrip.core.domain.port
 
+import com.rehabgrip.core.domain.model.Injury
 import com.rehabgrip.core.domain.model.Measurement
 import com.rehabgrip.core.domain.model.UserProfile
+import com.rehabgrip.core.domain.reminder.Reminder
+import com.rehabgrip.core.domain.workout.CustomGrip
+import com.rehabgrip.core.domain.workout.WorkoutResultEntry
+import com.rehabgrip.core.domain.workout.WorkoutTemplate
 import kotlinx.coroutines.flow.Flow
 
 /** Output port: persistence of measurements (implemented in :core:data). */
@@ -12,10 +17,58 @@ interface MeasurementRepository {
     suspend fun replaceAll(measurements: List<Measurement>)
 }
 
-/** Output port: the single local user. */
+/** Output port: the single local user and the injured hand/fingers. */
 interface ProfileRepository {
     fun observe(): Flow<UserProfile?>
     suspend fun save(profile: UserProfile)
+    fun observeInjury(): Flow<Injury>
+    suspend fun saveInjury(injury: Injury)
+}
+
+interface ReminderRepository {
+    fun observeAll(): Flow<List<Reminder>>
+    suspend fun all(): List<Reminder>
+    suspend fun upsert(reminder: Reminder): Long
+    suspend fun delete(id: Long)
+}
+
+interface WorkoutRepository {
+    fun observeAll(): Flow<List<WorkoutTemplate>>
+    suspend fun upsert(template: WorkoutTemplate): Long
+    suspend fun delete(id: Long)
+}
+
+interface WorkoutResultRepository {
+    fun observeAll(): Flow<List<WorkoutResultEntry>>
+    suspend fun add(entry: WorkoutResultEntry)
+    suspend fun delete(epochMillis: Long)
+}
+
+interface CustomGripRepository {
+    fun observeAll(): Flow<List<CustomGrip>>
+    suspend fun add(grip: CustomGrip): Long
+}
+
+/** Output port: OS local notifications (AlarmManager / UNUserNotificationCenter). */
+interface ReminderScheduler {
+    /** Replaces every scheduled reminder with [reminders] (only enabled ones fire). */
+    suspend fun reschedule(reminders: List<Reminder>)
+
+    /** Asks for notification permission; true when granted. */
+    suspend fun ensurePermission(): Boolean
+
+    /** Fires one notification right now (to check that they arrive). */
+    fun showTest()
+}
+
+/** Output port: sounds and haptics during guided workouts. */
+interface CuePlayer {
+    fun countdownTick()
+    fun pullStart()
+    fun pullEnd()
+    fun aboveMax()
+    fun belowMin()
+    fun finished()
 }
 
 /** Output port: hands a CSV file to the platform share sheet. */

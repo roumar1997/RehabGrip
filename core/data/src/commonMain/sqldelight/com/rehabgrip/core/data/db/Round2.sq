@@ -1,0 +1,120 @@
+CREATE TABLE discomfort (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    measurement_id INTEGER NOT NULL,
+    zone TEXT NOT NULL,
+    level INTEGER NOT NULL
+);
+
+CREATE INDEX discomfort_measurement ON discomfort(measurement_id);
+
+CREATE TABLE reminder (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    days TEXT NOT NULL,
+    hour INTEGER NOT NULL,
+    minute INTEGER NOT NULL,
+    enabled INTEGER NOT NULL DEFAULT 1
+);
+
+CREATE TABLE custom_grip (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    edge_mm INTEGER NOT NULL,
+    fingers TEXT NOT NULL,
+    type TEXT NOT NULL
+);
+
+CREATE TABLE workout_template (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    hand_mode TEXT NOT NULL,
+    first_hand TEXT NOT NULL
+);
+
+CREATE TABLE workout_set (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    template_id INTEGER NOT NULL,
+    position INTEGER NOT NULL,
+    reps INTEGER NOT NULL,
+    work_s INTEGER NOT NULL,
+    rest_s INTEGER NOT NULL,
+    grip_exercise TEXT,
+    grip_custom_id INTEGER,
+    target_type TEXT NOT NULL,
+    target_min REAL,
+    target_max REAL,
+    to_failure TEXT NOT NULL,
+    start_mode TEXT NOT NULL,
+    threshold_kg REAL NOT NULL,
+    hand TEXT NOT NULL
+);
+
+CREATE TABLE workout_result (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    epoch_millis INTEGER NOT NULL,
+    hand TEXT NOT NULL,
+    max_kg REAL NOT NULL,
+    avg_kg REAL NOT NULL,
+    in_zone REAL,
+    reps INTEGER NOT NULL
+);
+
+selectAllDiscomforts:
+SELECT * FROM discomfort;
+
+insertDiscomfort:
+INSERT INTO discomfort(measurement_id, zone, level) VALUES (?, ?, ?);
+
+deleteDiscomfortsOf:
+DELETE FROM discomfort WHERE measurement_id = ?;
+
+deleteAllDiscomforts:
+DELETE FROM discomfort;
+
+selectReminders:
+SELECT * FROM reminder ORDER BY hour, minute;
+
+insertReminder:
+INSERT INTO reminder(days, hour, minute, enabled) VALUES (?, ?, ?, ?);
+
+updateReminder:
+UPDATE reminder SET days = ?, hour = ?, minute = ?, enabled = ? WHERE id = ?;
+
+deleteReminder:
+DELETE FROM reminder WHERE id = ?;
+
+selectCustomGrips:
+SELECT * FROM custom_grip ORDER BY id;
+
+insertCustomGrip:
+INSERT INTO custom_grip(edge_mm, fingers, type) VALUES (?, ?, ?);
+
+selectTemplates:
+SELECT * FROM workout_template ORDER BY id;
+
+insertTemplate:
+INSERT INTO workout_template(name, hand_mode, first_hand) VALUES (?, ?, ?);
+
+updateTemplate:
+UPDATE workout_template SET name = ?, hand_mode = ?, first_hand = ? WHERE id = ?;
+
+deleteTemplate:
+DELETE FROM workout_template WHERE id = ?;
+
+selectAllSets:
+SELECT * FROM workout_set ORDER BY template_id, position;
+
+insertSet:
+INSERT INTO workout_set(template_id, position, reps, work_s, rest_s, grip_exercise, grip_custom_id, target_type, target_min, target_max, to_failure, start_mode, threshold_kg, hand)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+deleteSetsOf:
+DELETE FROM workout_set WHERE template_id = ?;
+
+selectResults:
+SELECT * FROM workout_result ORDER BY epoch_millis DESC;
+
+insertResult:
+INSERT INTO workout_result(name, epoch_millis, hand, max_kg, avg_kg, in_zone, reps) VALUES (?, ?, ?, ?, ?, ?, ?);
+
+deleteResultsAt:
+DELETE FROM workout_result WHERE epoch_millis = ?;

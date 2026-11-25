@@ -1,0 +1,53 @@
+CREATE TABLE discomfort (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    measurement_id INTEGER NOT NULL,
+    zone TEXT NOT NULL,
+    level INTEGER NOT NULL
+);
+CREATE INDEX discomfort_measurement ON discomfort(measurement_id);
+CREATE TABLE reminder (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    days TEXT NOT NULL,
+    hour INTEGER NOT NULL,
+    minute INTEGER NOT NULL,
+    enabled INTEGER NOT NULL DEFAULT 1
+);
+CREATE TABLE custom_grip (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    edge_mm INTEGER NOT NULL,
+    fingers TEXT NOT NULL,
+    type TEXT NOT NULL
+);
+CREATE TABLE workout_template (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    hand_mode TEXT NOT NULL,
+    first_hand TEXT NOT NULL
+);
+CREATE TABLE workout_set (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    template_id INTEGER NOT NULL,
+    position INTEGER NOT NULL,
+    reps INTEGER NOT NULL,
+    work_s INTEGER NOT NULL,
+    rest_s INTEGER NOT NULL,
+    grip_exercise TEXT,
+    grip_custom_id INTEGER,
+    target_type TEXT NOT NULL,
+    target_min REAL,
+    target_max REAL,
+    to_failure TEXT NOT NULL,
+    start_mode TEXT NOT NULL,
+    threshold_kg REAL NOT NULL,
+    hand TEXT NOT NULL
+);
+CREATE TABLE workout_result (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    epoch_millis INTEGER NOT NULL,
+    hand TEXT NOT NULL,
+    max_kg REAL NOT NULL,
+    avg_kg REAL NOT NULL,
+    in_zone REAL,
+    reps INTEGER NOT NULL
+);
