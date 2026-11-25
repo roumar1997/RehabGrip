@@ -33,6 +33,16 @@ class SimulatedForceSource(
     override val readings: SharedFlow<ScaleReading> = _readings.asSharedFlow()
     private var job: Job? = null
 
+    /** Set once a session drives the scale; before that it free-runs in cycles. */
+    private var driven = false
+    private var effort = false
+    private var strength = 1.0
+    private var effortStartMs = 0L
+    private var sinceStartMs = 0L
+    private var releaseFromKg = 0.0
+    private var lastKg = 0.0
+    private var pullPeak = 0.0
+
     override fun start() {
         if (job?.isActive == true) return
         _status.value = ScaleStatus.SCANNING
@@ -41,7 +51,10 @@ class SimulatedForceSource(
             _status.value = ScaleStatus.RECEIVING
             var tick = 0L
             while (isActive) {
-                _readings.emit(ScaleReading(valueAt(tick * PERIOD_MS), stable = false))
+                sinceStartMs = tick * PERIOD_MS
+                val kg = if (driven) drivenValue(sinceStartMs) else valueAt(sinceStartMs)
+                lastKg = kg
+                _readings.emit(ScaleReading(kg, stable = false))
                 tick++
                 delay(PERIOD_MS)
             }
@@ -52,6 +65,34 @@ class SimulatedForceSource(
         job?.cancel()
         job = null
         _status.value = ScaleStatus.IDLE
+    }
+
+    override fun setEffort(active: Boolean, strength: Double) {
+        driven = true
+        if (active == effort && (!active || strength == this.strength)) return
+        effort = active
+        this.strength = strength
+        if (active) {
+            effortStartMs = sinceStartMs
+            pullPeak = peakKg * strength * (0.94 + random.nextDouble() * 0.08)
+        } else {
+            releaseFromKg = lastKg
+            effortStartMs = sinceStartMs
+        }
+    }
+
+    /** Follows the workout: rises right after each «Tira», drops to zero when resting. */
+    internal fun drivenValue(t: Long): Double {
+        val since = (t - effortStartMs).coerceAtLeast(0)
+        val base = if (effort) {
+            val ramp = easeOut((since.toDouble() / RAMP_MS).coerceAtMost(1.0))
+            val fade = 1.0 - 0.1 * (since.toDouble() / 10_000).coerceAtMost(1.0)
+            pullPeak * ramp * fade * (1.0 + 0.02 * sin(since / 400.0))
+        } else {
+            releaseFromKg * (1.0 - (since.toDouble() / RELEASE_MS).coerceAtMost(1.0))
+        }
+        val noise = if (base > 0.0) (random.nextDouble() - 0.5) * 0.4 else 0.0
+        return (base + noise).coerceAtLeast(0.0)
     }
 
     /** Force profile at [t] ms since the stream began. */

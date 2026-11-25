@@ -7,6 +7,12 @@ data class Slot(val setIndex: Int, val rep: Int, val hand: Hand)
 
 enum class EnginePhase { PREPARE, REST, WAITING, PULL, DONE }
 
+/** What one hand is doing right now: pulling (TIRA), resting (DESCANSA) or waiting for its turn (ESPERA). */
+enum class HandState { PULL, REST, WAIT }
+
+/** Per-hand view for the two-column screen. [displayMs] is that hand's own timer (0 when none). */
+data class HandPanel(val hand: Hand, val state: HandState, val displayMs: Long, val inTurn: Boolean)
+
 data class RepResult(
     val slot: Slot,
     val peakKg: Double,
@@ -34,6 +40,8 @@ data class EngineSnapshot(
     val otherHand: Hand?,
     val pullsDone: Int,
     val results: List<RepResult>,
+    /** Panels of the hands taking part (right first), for the split screen. */
+    val panels: List<HandPanel> = emptyList(),
 )
 
 /**
@@ -59,6 +67,7 @@ class WorkoutEngine(
     private var lastCountdown = Int.MAX_VALUE
 
     val alternating: Boolean = template.handMode == HandMode.ALTERNATING
+    private val participants: List<Hand> = Hand.entries.filter { h -> slots.any { it.hand == h } }
 
     private val current: Slot? get() = slots.getOrNull(index)
     private fun setOf(slot: Slot) = template.sets[slot.setIndex]
@@ -144,7 +153,21 @@ class WorkoutEngine(
             otherHand = other,
             pullsDone = results.count { !it.skipped },
             results = results.toList(),
+            panels = panels(slot, phase, display),
         )
+    }
+
+    private fun panels(slot: Slot?, phase: EnginePhase, display: Long): List<HandPanel> = participants.map { h ->
+        when {
+            slot == null -> HandPanel(h, HandState.WAIT, 0, inTurn = false)
+            h == slot.hand -> when (phase) {
+                EnginePhase.PREPARE -> HandPanel(h, HandState.WAIT, display, inTurn = true)
+                EnginePhase.REST -> HandPanel(h, HandState.REST, display, inTurn = true)
+                else -> HandPanel(h, HandState.PULL, if (phase == EnginePhase.PULL) display else 0, inTurn = true)
+            }
+            phase != EnginePhase.PREPARE && rest.getValue(h) > 0 -> HandPanel(h, HandState.REST, rest.getValue(h), inTurn = false)
+            else -> HandPanel(h, HandState.WAIT, 0, inTurn = false)
+        }
     }
 
     /** Slots still to run (for "rep 3/6"). */

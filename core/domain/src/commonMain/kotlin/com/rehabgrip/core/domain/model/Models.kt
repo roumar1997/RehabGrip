@@ -20,6 +20,14 @@ enum class Exercise(val usesScale: Boolean) {
 
     /** Hand dynamometer squeezed; value typed by hand. */
     DYNAMOMETER(usesScale = false),
+
+    /** Measurements of a user-made grip (see Measurement.gripId). Never listed as an exercise. */
+    CUSTOM(usesScale = true);
+
+    companion object {
+        /** The exercises shown in pickers and lists. */
+        val selectable: List<Exercise> get() = entries.filter { it != CUSTOM }
+    }
 }
 
 enum class MeasurementSource { SCALE, MANUAL }
@@ -34,6 +42,8 @@ data class Measurement(
     val note: String = "",
     /** Optional discomforts noted when saving (zone + level 0-10). */
     val discomforts: List<Discomfort> = emptyList(),
+    /** Library grip used, when the value came from an evaluation or a session. */
+    val gripId: Long? = null,
 )
 
 /** One discomfort: predefined or free-text zone and level 0-10. */

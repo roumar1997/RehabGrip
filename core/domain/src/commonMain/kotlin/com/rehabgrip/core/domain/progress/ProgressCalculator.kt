@@ -3,6 +3,7 @@ package com.rehabgrip.core.domain.progress
 import com.rehabgrip.core.domain.model.Exercise
 import com.rehabgrip.core.domain.model.Hand
 import com.rehabgrip.core.domain.model.Measurement
+import com.rehabgrip.core.domain.workout.GripSpec
 import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
@@ -28,6 +29,8 @@ data class HandProgress(
 
 data class ProgressSummary(
     val exercise: Exercise,
+    /** Library grip name when the summary is per grip; null for a plain exercise. */
+    val title: String? = null,
     val right: HandProgress,
     val left: HandProgress,
     /** Days actually covered by the data in range (the period the user has been training). */
@@ -71,14 +74,30 @@ class ProgressCalculator(private val timeZone: TimeZone = TimeZone.currentSystem
         range: ProgressRange,
         nowMillis: Long,
     ): ProgressSummary {
+        return build(all, exercise, null, range, nowMillis) { it.exercise == exercise }
+    }
+
+    /** Evolution of one library grip (its own evaluations, sessions and, for predefined ones, legacy records). */
+    fun summarizeGrip(all: List<Measurement>, grip: GripSpec, range: ProgressRange, nowMillis: Long): ProgressSummary =
+        build(all, grip.builtIn ?: Exercise.CUSTOM, grip.label, range, nowMillis) { grip.matches(it) }
+
+    private fun build(
+        all: List<Measurement>,
+        exercise: Exercise,
+        title: String?,
+        range: ProgressRange,
+        nowMillis: Long,
+        belongs: (Measurement) -> Boolean,
+    ): ProgressSummary {
         val fromMillis = range.days?.let { nowMillis - it * DAY_MS } ?: Long.MIN_VALUE
-        val inRange = all.filter { it.exercise == exercise && it.epochMillis in fromMillis..nowMillis }
+        val inRange = all.filter { belongs(it) && it.epochMillis in fromMillis..nowMillis }
         val span = if (inRange.isEmpty()) 0 else {
             val first = inRange.minOf { it.epochMillis }
             ((nowMillis - first) / DAY_MS).toInt() + 1
         }
         return ProgressSummary(
             exercise = exercise,
+            title = title,
             right = handProgress(inRange, Hand.RIGHT),
             left = handProgress(inRange, Hand.LEFT),
             spanDays = span,

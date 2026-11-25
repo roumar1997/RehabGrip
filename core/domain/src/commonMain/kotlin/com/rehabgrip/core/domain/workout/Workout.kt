@@ -21,15 +21,6 @@ enum class ZoneStatus { BELOW, IN, ABOVE }
 /** One hand only, both one after the other, or alternating pulls (FREZ). */
 enum class HandMode { SINGLE, BOTH_SEQUENTIAL, ALTERNATING }
 
-/** Where the grip comes from: a standard exercise or one the user created. */
-sealed interface Grip {
-    data class Standard(val exercise: Exercise) : Grip
-    data class Custom(val grip: CustomGrip) : Grip
-}
-
-/** User-made grip, e.g. 20 mm / 2 dedos centrales / semiarqueo. */
-data class CustomGrip(val id: Long = 0, val edgeMm: Int, val fingers: String, val type: String)
-
 /** What the set aims for. */
 sealed interface SetTarget {
     /** Pull as hard as possible; no band. */
@@ -37,7 +28,7 @@ sealed interface SetTarget {
 
     data class Kg(val minKg: Double?, val maxKg: Double?) : SetTarget
 
-    /** «Umbral basado en registro»: % of the last record of that hand and grip. */
+    /** «Umbral basado en registro»: % of the evaluated max of that hand and grip. */
     data class PercentOfRecord(val minPercent: Int?, val maxPercent: Int?) : SetTarget
 
     /** Null when there is no usable band (none set, inverted, or no record yet). */

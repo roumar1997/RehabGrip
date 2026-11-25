@@ -5,7 +5,8 @@ CREATE TABLE measurement (
     kg REAL NOT NULL,
     epoch_millis INTEGER NOT NULL,
     source TEXT NOT NULL,
-    note TEXT NOT NULL DEFAULT ''
+    note TEXT NOT NULL DEFAULT '',
+    grip_id INTEGER
 );
 
 CREATE INDEX measurement_time ON measurement(epoch_millis);
@@ -19,7 +20,7 @@ selectAll:
 SELECT * FROM measurement ORDER BY epoch_millis DESC;
 
 insert:
-INSERT INTO measurement(exercise, hand, kg, epoch_millis, source, note) VALUES (?, ?, ?, ?, ?, ?);
+INSERT INTO measurement(exercise, hand, kg, epoch_millis, source, note, grip_id) VALUES (?, ?, ?, ?, ?, ?, ?);
 
 lastId:
 SELECT last_insert_rowid();

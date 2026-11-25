@@ -17,6 +17,7 @@ class SaveMeasurement(private val repository: MeasurementRepository) {
         epochMillis: Long,
         note: String = "",
         discomforts: List<Discomfort> = emptyList(),
+        gripId: Long? = null,
     ): Result<Long> {
         if (kg <= 0.0 || kg > MAX_KG) return Result.failure(IllegalArgumentException("kg out of range: $kg"))
         val id = repository.add(
@@ -27,6 +28,7 @@ class SaveMeasurement(private val repository: MeasurementRepository) {
                 epochMillis = epochMillis,
                 source = source,
                 note = note.trim(),
+                gripId = gripId,
                 // One entry per zone: the last level given wins.
                 discomforts = discomforts.reversed().distinctBy { it.zone.trim().lowercase() }.reversed(),
             ),

@@ -6,12 +6,12 @@ import com.rehabgrip.core.data.db.RehabGripDatabase
 import com.rehabgrip.core.data.db.Workout_set
 import com.rehabgrip.core.domain.model.Exercise
 import com.rehabgrip.core.domain.model.Hand
-import com.rehabgrip.core.domain.port.CustomGripRepository
+import com.rehabgrip.core.domain.port.GripRepository
 import com.rehabgrip.core.domain.port.ReminderRepository
 import com.rehabgrip.core.domain.port.WorkoutRepository
 import com.rehabgrip.core.domain.port.WorkoutResultRepository
 import com.rehabgrip.core.domain.reminder.Reminder
-import com.rehabgrip.core.domain.workout.CustomGrip
+import com.rehabgrip.core.domain.workout.GripSpec
 import com.rehabgrip.core.domain.workout.Grip
 import com.rehabgrip.core.domain.workout.HandMode
 import com.rehabgrip.core.domain.workout.HandWorkoutResult
@@ -57,21 +57,7 @@ class SqlReminderRepository(private val db: RehabGripDatabase) : ReminderReposit
     override suspend fun delete(id: Long) = withContext(Dispatchers.IO) { q.deleteReminder(id) }
 }
 
-class SqlCustomGripRepository(private val db: RehabGripDatabase) : CustomGripRepository {
-    private val q get() = db.round2Queries
-
-    override fun observeAll(): Flow<List<CustomGrip>> = q.selectCustomGrips().asFlow().mapToList(Dispatchers.IO)
-        .map { rows -> rows.map { CustomGrip(it.id, it.edge_mm.toInt(), it.fingers, it.type) } }
-
-    override suspend fun add(grip: CustomGrip): Long = withContext(Dispatchers.IO) {
-        q.transactionWithResult {
-            q.insertCustomGrip(grip.edgeMm.toLong(), grip.fingers.trim(), grip.type.trim())
-            db.rehabGripQueries.lastId().executeAsOne()
-        }
-    }
-}
-
-class SqlWorkoutRepository(private val db: RehabGripDatabase, private val grips: CustomGripRepository) : WorkoutRepository {
+class SqlWorkoutRepository(private val db: RehabGripDatabase, private val grips: GripRepository) : WorkoutRepository {
     private val q get() = db.round2Queries
 
     override fun observeAll(): Flow<List<WorkoutTemplate>> = combine(
@@ -81,11 +67,12 @@ class SqlWorkoutRepository(private val db: RehabGripDatabase, private val grips:
     ) { templates, sets, customGrips ->
         val byTemplate = sets.groupBy { it.template_id }
         val gripById = customGrips.associateBy { it.id }
+        val gripByExercise = customGrips.filter { it.builtIn != null }.associateBy { it.builtIn }
         templates.map { t ->
             WorkoutTemplate(
                 id = t.id,
                 name = t.name,
-                sets = byTemplate[t.id].orEmpty().map { it.toDomain(gripById) },
+                sets = byTemplate[t.id].orEmpty().map { it.toDomain(gripById, gripByExercise) },
                 handMode = enumOrNull<HandMode>(t.hand_mode) ?: HandMode.SINGLE,
                 firstHand = enumOrNull<Hand>(t.first_hand) ?: Hand.RIGHT,
             )
@@ -122,14 +109,14 @@ class SqlWorkoutRepository(private val db: RehabGripDatabase, private val grips:
         }
         q.insertSet(
             templateId, position.toLong(), s.reps.toLong(), s.workSeconds.toLong(), s.restSeconds.toLong(),
-            (s.grip as? Grip.Standard)?.exercise?.name, (s.grip as? Grip.Custom)?.grip?.id,
+            (s.grip as? Grip.Standard)?.exercise?.name, (s.grip as? Grip.Library)?.grip?.id,
             type, min, max, s.toFailure.name, s.startMode.name, s.thresholdKg, s.hand.name,
         )
     }
 
-    private fun Workout_set.toDomain(customGrips: Map<Long, CustomGrip>): WorkoutSet {
-        val grip = grip_custom_id?.let(customGrips::get)?.let { Grip.Custom(it) }
-            ?: Grip.Standard(enumOrNull<Exercise>(grip_exercise) ?: Exercise.HALF_CRIMP)
+    private fun Workout_set.toDomain(library: Map<Long, GripSpec>, byExercise: Map<Exercise?, GripSpec>): WorkoutSet {
+        val exercise = enumOrNull<Exercise>(grip_exercise) ?: Exercise.HALF_CRIMP
+        val grip = (grip_custom_id?.let(library::get) ?: byExercise[exercise])?.let { Grip.Library(it) } ?: Grip.Standard(exercise)
         val target = when (target_type) {
             "KG" -> SetTarget.Kg(target_min, target_max)
             "PERCENT" -> SetTarget.PercentOfRecord(target_min?.toInt(), target_max?.toInt())

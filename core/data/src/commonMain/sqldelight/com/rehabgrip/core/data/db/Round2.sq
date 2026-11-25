@@ -19,8 +19,23 @@ CREATE TABLE custom_grip (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     edge_mm INTEGER NOT NULL,
     fingers TEXT NOT NULL,
-    type TEXT NOT NULL
+    type TEXT NOT NULL,
+    name TEXT NOT NULL DEFAULT '',
+    finger_count INTEGER NOT NULL DEFAULT 4,
+    built_in TEXT
 );
+
+CREATE TABLE grip_evaluation (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    grip_id INTEGER NOT NULL,
+    hand TEXT NOT NULL,
+    max_kg REAL NOT NULL,
+    min_kg REAL,
+    avg_kg REAL,
+    epoch_millis INTEGER NOT NULL
+);
+
+CREATE INDEX grip_evaluation_grip ON grip_evaluation(grip_id, hand);
 
 CREATE TABLE workout_template (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -82,11 +97,23 @@ UPDATE reminder SET days = ?, hour = ?, minute = ?, enabled = ? WHERE id = ?;
 deleteReminder:
 DELETE FROM reminder WHERE id = ?;
 
-selectCustomGrips:
+selectGrips:
 SELECT * FROM custom_grip ORDER BY id;
 
-insertCustomGrip:
-INSERT INTO custom_grip(edge_mm, fingers, type) VALUES (?, ?, ?);
+insertGrip:
+INSERT INTO custom_grip(name, edge_mm, finger_count, fingers, type, built_in) VALUES (?, ?, ?, ?, ?, ?);
+
+updateGrip:
+UPDATE custom_grip SET name = ?, edge_mm = ?, finger_count = ?, fingers = ?, type = ? WHERE id = ?;
+
+deleteGrip:
+DELETE FROM custom_grip WHERE id = ? AND built_in IS NULL;
+
+selectEvaluations:
+SELECT * FROM grip_evaluation ORDER BY epoch_millis DESC;
+
+insertEvaluation:
+INSERT INTO grip_evaluation(grip_id, hand, max_kg, min_kg, avg_kg, epoch_millis) VALUES (?, ?, ?, ?, ?, ?);
 
 selectTemplates:
 SELECT * FROM workout_template ORDER BY id;

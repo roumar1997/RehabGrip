@@ -1,0 +1,24 @@
+-- v2 -> v3: grip library (predefined + own), grip evaluations, measurements linked to a grip.
+ALTER TABLE custom_grip ADD COLUMN name TEXT NOT NULL DEFAULT '';
+ALTER TABLE custom_grip ADD COLUMN finger_count INTEGER NOT NULL DEFAULT 4;
+ALTER TABLE custom_grip ADD COLUMN built_in TEXT;
+-- Grips created in round 2 keep exactly the label they had.
+UPDATE custom_grip SET name = substr(edge_mm || ' mm / ' || fingers || ' / ' || type, 1, 30);
+UPDATE custom_grip SET finger_count = CASE
+    WHEN fingers LIKE '1%' THEN 1
+    WHEN fingers LIKE '2%' THEN 2
+    WHEN fingers LIKE '3%' THEN 3
+    ELSE 4 END;
+
+CREATE TABLE grip_evaluation (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    grip_id INTEGER NOT NULL,
+    hand TEXT NOT NULL,
+    max_kg REAL NOT NULL,
+    min_kg REAL,
+    avg_kg REAL,
+    epoch_millis INTEGER NOT NULL
+);
+CREATE INDEX grip_evaluation_grip ON grip_evaluation(grip_id, hand);
+
+ALTER TABLE measurement ADD COLUMN grip_id INTEGER;

@@ -4,7 +4,8 @@ import com.rehabgrip.core.domain.model.Injury
 import com.rehabgrip.core.domain.model.Measurement
 import com.rehabgrip.core.domain.model.UserProfile
 import com.rehabgrip.core.domain.reminder.Reminder
-import com.rehabgrip.core.domain.workout.CustomGrip
+import com.rehabgrip.core.domain.grip.GripEvaluation
+import com.rehabgrip.core.domain.workout.GripSpec
 import com.rehabgrip.core.domain.workout.WorkoutResultEntry
 import com.rehabgrip.core.domain.workout.WorkoutTemplate
 import kotlinx.coroutines.flow.Flow
@@ -44,9 +45,19 @@ interface WorkoutResultRepository {
     suspend fun delete(epochMillis: Long)
 }
 
-interface CustomGripRepository {
-    fun observeAll(): Flow<List<CustomGrip>>
-    suspend fun add(grip: CustomGrip): Long
+/** Output port: the user's grip library (predefined + own). */
+interface GripRepository {
+    fun observeAll(): Flow<List<GripSpec>>
+    suspend fun upsert(grip: GripSpec): Long
+    suspend fun delete(id: Long)
+
+    /** Inserts the predefined grips when missing (idempotent). */
+    suspend fun ensureDefaults()
+}
+
+interface GripEvaluationRepository {
+    fun observeAll(): Flow<List<GripEvaluation>>
+    suspend fun add(evaluation: GripEvaluation): Long
 }
 
 /** Output port: OS local notifications (AlarmManager / UNUserNotificationCenter). */

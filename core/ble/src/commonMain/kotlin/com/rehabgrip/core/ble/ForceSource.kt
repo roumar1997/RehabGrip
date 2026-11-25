@@ -18,4 +18,11 @@ interface ForceSource {
     val readings: SharedFlow<ScaleReading>
     fun start()
     fun stop()
+
+    /**
+     * Hint from a guided session: the user should be pulling (true) or resting (false).
+     * Only the simulated scale uses it, to follow the rhythm of the workout; real scales ignore it.
+     * [strength] scales the simulated peak (0-1).
+     */
+    fun setEffort(active: Boolean, strength: Double = 1.0) = Unit
 }

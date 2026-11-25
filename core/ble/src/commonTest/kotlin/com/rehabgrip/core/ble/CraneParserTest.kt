@@ -54,4 +54,14 @@ class CraneParserTest {
         assertEquals(0.0, sim.valueAt(500))
         assertTrue(sim.valueAt(4_000) in 25.0..33.0)
     }
+
+    @Test
+    fun drivenSimulatorPullsOnDemandAndRestsAtZero() {
+        val sim = SimulatedForceSource(peakKg = 30.0, random = Random(1))
+        sim.setEffort(true)
+        assertTrue(sim.drivenValue(2_000) in 22.0..33.0)
+        assertTrue(sim.drivenValue(100) < sim.drivenValue(2_000))
+        sim.setEffort(false)
+        assertEquals(0.0, sim.drivenValue(5_000))
+    }
 }
