@@ -106,6 +106,9 @@ INSERT INTO custom_grip(name, edge_mm, finger_count, fingers, type, built_in) VA
 updateGrip:
 UPDATE custom_grip SET name = ?, edge_mm = ?, finger_count = ?, fingers = ?, type = ? WHERE id = ?;
 
+replaceGripInSets:
+UPDATE workout_set SET grip_custom_id = ?, grip_exercise = NULL WHERE grip_custom_id = ?;
+
 deleteGrip:
 DELETE FROM custom_grip WHERE id = ? AND built_in IS NULL;
 

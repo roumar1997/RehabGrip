@@ -15,6 +15,14 @@ import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Speed
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
+import com.rehabgrip.core.designsystem.components.GripChip
+import com.rehabgrip.core.domain.workout.Grip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -37,7 +45,9 @@ import com.rehabgrip.core.designsystem.components.RgTopBar
 import com.rehabgrip.core.designsystem.theme.RgColors
 import com.rehabgrip.core.domain.grip.GripRecordRow
 import com.rehabgrip.core.domain.model.Injury
+import com.rehabgrip.core.domain.grip.GripUsage
 import com.rehabgrip.core.domain.workout.GripSpec
+import com.rehabgrip.core.domain.workout.WorkoutTemplate
 
 /** «Mis agarres»: the library with the evaluated max of each hand; create, edit and evaluate. */
 @Composable
@@ -46,10 +56,13 @@ fun GripLibraryScreen(
     injury: Injury,
     onBack: () -> Unit,
     onSave: (GripSpec) -> Unit,
-    onDelete: (GripSpec) -> Unit,
+    templates: List<WorkoutTemplate>,
+    /** Deletes [grip]; sets that used it move to the replacement. */
+    onDelete: (GripSpec, Long?) -> Unit,
     onEvaluate: (GripSpec) -> Unit,
 ) {
     var editing by remember { mutableStateOf<GripSpec?>(null) }
+    var deleting by remember { mutableStateOf<GripSpec?>(null) }
     Column(Modifier.fillMaxSize()) {
         RgTopBar("Mis agarres", onBack = onBack)
         LazyColumn(
@@ -81,12 +94,61 @@ fun GripLibraryScreen(
         }
         RgPrimaryButton("Nuevo agarre", { editing = GripSpec() }, Modifier.padding(16.dp).navigationBarsPadding(), icon = Icons.Rounded.Add)
     }
+    deleting?.let { grip ->
+        DeleteGripDialog(grip, rows, templates, onCancel = { deleting = null }) { replacement ->
+            onDelete(grip, replacement)
+            deleting = null
+        }
+    }
     editing?.let { grip ->
         GripEditorDialog(
             initial = grip,
             onDismiss = { editing = null },
             onSave = { onSave(it); editing = null },
-            onDelete = if (grip.id != 0L && grip.builtIn == null) ({ onDelete(grip); editing = null }) else null,
+            onDelete = if (grip.id != 0L && grip.builtIn == null) ({ deleting = grip; editing = null }) else null,
         )
     }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+/** Confirms the deletion; when sessions use the grip it lists them and forces a replacement. */
+@Composable
+private fun DeleteGripDialog(
+    grip: GripSpec,
+    rows: List<GripRecordRow>,
+    templates: List<WorkoutTemplate>,
+    onCancel: () -> Unit,
+    onConfirm: (Long?) -> Unit,
+) {
+    val users = GripUsage.usedBy(grip, templates)
+    val options = GripUsage.replacements(grip, rows.map { it.grip })
+    var replacement by remember { mutableStateOf<Long?>(null) }
+    AlertDialog(
+        onDismissRequest = onCancel,
+        containerColor = RgColors.Background,
+        title = { Text("¿Borrar «${grip.label}»?") },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (users.isEmpty()) {
+                    Text("Ninguna sesión lo usa. Sus evaluaciones y registros se conservan en el historial.")
+                } else {
+                    Text("Lo usan estas sesiones:", style = MaterialTheme.typography.titleSmall, color = RgColors.Navy)
+                    users.forEach { t ->
+                        val n = t.sets.count { (it.grip as? Grip.Library)?.grip?.id == grip.id }
+                        Text("• ${t.name} (${if (n == 1) "1 serie" else "$n series"})")
+                    }
+                    Text("Elige con qué agarre sustituirlo en esas series:", style = MaterialTheme.typography.titleSmall, color = RgColors.Navy)
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        options.forEach { o -> GripChip(o.label, replacement == o.id) { replacement = o.id } }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onConfirm(replacement) }, enabled = users.isEmpty() || replacement != null) {
+                Text(if (users.isEmpty()) "Borrar" else "Sustituir y borrar", color = if (users.isEmpty() || replacement != null) RgColors.Danger else RgColors.TextSecondary)
+            }
+        },
+        dismissButton = { TextButton(onClick = onCancel) { Text("Cancelar") } },
+    )
 }

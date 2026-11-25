@@ -1,11 +1,13 @@
 name: RehabGrip
 options:
-  bundleIdPrefix: com.rehabgrip
+  bundleIdPrefix: com.alvarofanjul
   deploymentTarget:
     iOS: "16.0"
 settings:
   base:
-    MARKETING_VERSION: "0.1.0"
+    # Single place for the bundle id (TestFlight / App Store Connect).
+    APP_BUNDLE_ID: com.alvarofanjul.rehabgrip
+    MARKETING_VERSION: "1.0"
     CURRENT_PROJECT_VERSION: "1"
 targets:
   RehabGrip:
@@ -16,13 +18,19 @@ targets:
       path: iosApp/Info.plist
       properties:
         CFBundleDisplayName: RehabGrip
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
         UILaunchScreen: {}
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
-        NSBluetoothAlwaysUsageDescription: "RehabGrip usa Bluetooth para leer tu báscula Crane Scale WH-C06 mientras mides tu fuerza."
+        NSBluetoothAlwaysUsageDescription: "RehabGrip usa Bluetooth para leer tu báscula de fuerza"
+        # Reminders are local notifications: iOS asks at runtime (UNUserNotificationCenter),
+        # there is no Info.plist usage key for them.
+        ITSAppUsesNonExemptEncryption: false
         CADisableMinimumFrameDurationOnPhone: true
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.rehabgrip.ios
+        PRODUCT_BUNDLE_IDENTIFIER: "$(APP_BUNDLE_ID)"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         OTHER_LDFLAGS: ["$(inherited)", "-framework", "RehabGripShared", "-lsqlite3"]
         FRAMEWORK_SEARCH_PATHS: ["$(inherited)", "$(SRCROOT)/../shared/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)"]
         ENABLE_USER_SCRIPT_SANDBOXING: NO

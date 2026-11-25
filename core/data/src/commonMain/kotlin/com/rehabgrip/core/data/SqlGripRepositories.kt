@@ -49,7 +49,12 @@ class SqlGripRepository(private val db: RehabGripDatabase) : GripRepository {
         }
     }
 
-    override suspend fun delete(id: Long) = withContext(Dispatchers.IO) { q.deleteGrip(id) }
+    override suspend fun delete(id: Long, replacementId: Long?) = withContext(Dispatchers.IO) {
+        q.transaction {
+            if (replacementId != null) q.replaceGripInSets(replacementId, id)
+            q.deleteGrip(id)
+        }
+    }
 
     override suspend fun ensureDefaults() {
         val have = observeAll().first().mapNotNull { it.builtIn }.toSet()

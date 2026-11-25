@@ -49,7 +49,8 @@ interface WorkoutResultRepository {
 interface GripRepository {
     fun observeAll(): Flow<List<GripSpec>>
     suspend fun upsert(grip: GripSpec): Long
-    suspend fun delete(id: Long)
+    /** Deletes an own grip; sets that used it switch to [replacementId] first (never silently dropped). */
+    suspend fun delete(id: Long, replacementId: Long? = null)
 
     /** Inserts the predefined grips when missing (idempotent). */
     suspend fun ensureDefaults()

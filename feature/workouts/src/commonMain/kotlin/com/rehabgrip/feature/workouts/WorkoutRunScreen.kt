@@ -67,7 +67,10 @@ fun WorkoutRunScreen(
         },
     )
     Column(Modifier.fillMaxSize()) {
-        RgTopBar(template.name, onBack = onFinish)
+        RgTopBar(
+            if (slot == null) "Completado" else "Serie ${slot.setIndex + 1}/${template.sets.size} · Rep ${slot.rep}/${template.sets[slot.setIndex].reps}",
+            onBack = onFinish,
+        )
         Column(Modifier.weight(1f).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             if (snap.panels.size > 1 && phase != EnginePhase.DONE) {
                 HandColumns(snap.panels)
@@ -100,7 +103,7 @@ fun WorkoutRunScreen(
                     )
                 }
             }
-            Progress(template, state)
+            Progress(state)
             RgCard(Modifier.fillMaxWidth().weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("${formatKg(state.currentKg)} kg", style = MaterialTheme.typography.headlineMedium, color = RgColors.Navy, modifier = Modifier.weight(1f))
@@ -139,21 +142,13 @@ private fun phaseText(phase: EnginePhase, state: RunState): String = when (phase
 }
 
 @Composable
-private fun Progress(template: WorkoutTemplate, state: RunState) {
-    val slot = state.snapshot.slot
+private fun Progress(state: RunState) {
     val done = state.snapshot.results.size
-    Column {
-        Text(
-            if (slot == null) "Completado" else
-                "Serie ${slot.setIndex + 1}/${template.sets.size} · Rep ${slot.rep}/${template.sets[slot.setIndex].reps} · Tirones $done/${state.totalSlots}",
-            style = MaterialTheme.typography.titleSmall, color = RgColors.Navy,
-        )
-        LinearProgressIndicator(
-            progress = { if (state.totalSlots == 0) 1f else done.toFloat() / state.totalSlots },
-            modifier = Modifier.fillMaxWidth().height(8.dp).padding(top = 4.dp).clip(CircleShape),
-            color = RgColors.Primary, trackColor = RgColors.SurfaceTint,
-        )
-    }
+    LinearProgressIndicator(
+        progress = { if (state.totalSlots == 0) 1f else done.toFloat() / state.totalSlots },
+        modifier = Modifier.fillMaxWidth().height(8.dp).clip(CircleShape),
+        color = RgColors.Primary, trackColor = RgColors.SurfaceTint,
+    )
 }
 
 @Composable

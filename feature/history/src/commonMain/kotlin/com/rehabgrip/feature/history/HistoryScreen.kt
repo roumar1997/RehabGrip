@@ -60,6 +60,16 @@ import kotlinx.datetime.TimeZone
 import com.rehabgrip.core.domain.workout.GripSpec
 import kotlinx.datetime.toLocalDateTime
 
+private const val DYNAMOMETER_FILTER = -1L
+
+/** Library grips match by id (or, for predefined ones, by their old exercise); the dynamometer by exercise. */
+private fun matchesFilter(m: Measurement, filter: Long?, grip: GripSpec?): Boolean = when {
+    filter == null -> true
+    filter == DYNAMOMETER_FILTER -> m.exercise == Exercise.DYNAMOMETER
+    grip != null -> grip.matches(m)
+    else -> true
+}
+
 private enum class HandFilter(val hand: Hand?, val label: String) {
     ALL(null, "Todas"), RIGHT(Hand.RIGHT, "Derecha"), LEFT(Hand.LEFT, "Izquierda")
 }
@@ -76,11 +86,13 @@ fun HistoryScreen(
     fun nameOf(m: Measurement) = m.gripId?.let { id -> grips.firstOrNull { it.id == id } }?.label ?: Labels.exercise(m.exercise)
     var showWorkouts by rememberSaveable { mutableStateOf(false) }
     var handFilter by rememberSaveable { mutableStateOf(HandFilter.ALL) }
-    var exerciseFilter by rememberSaveable { mutableStateOf<Exercise?>(null) }
+    // null = all; otherwise a library grip id, or DYNAMOMETER_FILTER.
+    var gripFilter by rememberSaveable { mutableStateOf<Long?>(null) }
+    val filterGrip = grips.firstOrNull { it.id == gripFilter }
     var showFilters by rememberSaveable { mutableStateOf(true) }
     var toDelete by remember { mutableStateOf<Measurement?>(null) }
     val filtered = measurements.filter {
-        (handFilter.hand == null || it.hand == handFilter.hand) && (exerciseFilter == null || it.exercise == exerciseFilter)
+        (handFilter.hand == null || it.hand == handFilter.hand) && matchesFilter(it, gripFilter, filterGrip)
     }.sortedByDescending { it.epochMillis }
 
     Column(Modifier.fillMaxSize()) {
@@ -101,8 +113,9 @@ fun HistoryScreen(
             Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 RgSegmented(HandFilter.entries, handFilter, { it.label }, { handFilter = it })
                 Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Pill("Todos", exerciseFilter == null) { exerciseFilter = null }
-                    Exercise.selectable.forEach { e -> Pill(Labels.exercise(e), exerciseFilter == e) { exerciseFilter = e } }
+                    Pill("Todos", gripFilter == null) { gripFilter = null }
+                    grips.forEach { g -> Pill(g.label, gripFilter == g.id) { gripFilter = g.id } }
+                    Pill(Labels.exercise(Exercise.DYNAMOMETER), gripFilter == DYNAMOMETER_FILTER) { gripFilter = DYNAMOMETER_FILTER }
                 }
             }
         }

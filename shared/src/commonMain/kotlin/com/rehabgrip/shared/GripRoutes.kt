@@ -25,7 +25,8 @@ internal fun GripRoutes(route: Route, container: AppContainer, navigator: Naviga
             injury = session.injury,
             onBack = { navigator.pop() },
             onSave = { g -> scope.launch { container.grips.upsert(g) } },
-            onDelete = { g -> scope.launch { container.grips.delete(g.id) } },
+            templates = data.workouts,
+            onDelete = { g, replacement -> scope.launch { container.grips.delete(g.id, replacement) } },
             onEvaluate = { navigator.push(Route.GripEvaluate(it)) },
         )
         is Route.GripEvaluate -> GripEvaluateRoute(route.grip, container, session, data, onClose = { navigator.pop() })
