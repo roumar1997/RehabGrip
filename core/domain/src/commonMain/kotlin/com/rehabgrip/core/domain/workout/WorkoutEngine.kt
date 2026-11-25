@@ -63,6 +63,7 @@ class WorkoutEngine(
     private var prepareLeft = prepareMs
     private var pulling = false
     private var pullMs = 0L
+    private var belowMs = 0L
     private var peak = 0.0
     private var lastCountdown = Int.MAX_VALUE
 
@@ -90,19 +91,28 @@ class WorkoutEngine(
             val left = rest.getValue(slot.hand)
             countdown(left, events)
             if (left > 0) return events
-            val startKg = maxOf(set.thresholdKg, zoneFor(slot)?.minKg ?: 0.0)
-            if (set.startMode == StartMode.WEIGHT && kg < startKg) return events
+            // The clock never runs until the force reaches the threshold.
+            val startKg = if (set.startMode == StartMode.WEIGHT) maxOf(set.thresholdKg, zoneFor(slot)?.minKg ?: 0.0) else set.thresholdKg
+            if (kg < startKg) return events
             pulling = true
             pullMs = 0
+            belowMs = 0
             peak = kg
             lastCountdown = Int.MAX_VALUE
             events += EngineEvent.PullStarted(slot)
             return events
         }
-        pullMs += dtMs
+        // Work time only counts while pulling at or above the threshold.
+        val above = kg >= set.thresholdKg
+        if (above) {
+            pullMs += dtMs
+            belowMs = 0
+        } else {
+            belowMs += dtMs
+        }
         peak = maxOf(peak, kg)
         val workMs = set.workSeconds * 1000L
-        val dropped = pullMs > GRACE_MS && kg < set.thresholdKg
+        val dropped = belowMs > FAIL_BELOW_MS
         when (set.toFailure) {
             ToFailure.TIME -> if (dropped || pullMs >= MAX_OPEN_PULL_MS) endPull(slot, failed = false, events)
             ToFailure.REPS -> when {
@@ -112,7 +122,10 @@ class WorkoutEngine(
                     dropRemainingReps(slot)
                 }
             }
-            ToFailure.OFF -> if (pullMs >= workMs) endPull(slot, failed = false, events)
+            ToFailure.OFF -> when {
+                pullMs >= workMs -> endPull(slot, failed = false, events)
+                dropped -> endPull(slot, failed = true, events) // «Parada: fallo», on to the rest
+            }
         }
         if (current == null && events.none { it is EngineEvent.Finished }) events += EngineEvent.Finished
         return events
@@ -177,6 +190,7 @@ class WorkoutEngine(
         val result = RepResult(slot, peak, pullMs, failed = failed)
         results += result
         pulling = false
+        belowMs = 0
         index++
         rest[slot.hand] = if (current == null) 0 else setOf(slot).restSeconds * 1000L
         events += EngineEvent.PullEnded(result)
@@ -196,8 +210,10 @@ class WorkoutEngine(
     }
 
     companion object {
-        const val PREPARE_MS = 10_000L
-        const val GRACE_MS = 1_000L
+        const val PREPARE_MS = 5_000L
+
+        /** Below the threshold longer than this ends the rep as a failure. */
+        const val FAIL_BELOW_MS = 1_500L
         const val MAX_OPEN_PULL_MS = 300_000L
         const val MAX_REPS_TO_FAILURE = 50
 

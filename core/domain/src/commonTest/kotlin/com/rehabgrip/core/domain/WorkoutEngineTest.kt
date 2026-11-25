@@ -31,10 +31,10 @@ class WorkoutEngineTest {
         (1..ms / 100).flatMap { tick(100, kg) }
 
     @Test
-    fun exampleTemplateEstimatesNineFifty() {
+    fun exampleTemplateEstimatesNineFortyFive() {
         val example = WorkoutTemplate.example()
         assertEquals(listOf(6, 6, 2, 2, 2, 2), example.sets.map { it.reps })
-        assertEquals((9 * 60 + 50) * 1000L, WorkoutEngine.estimateDurationMs(example))
+        assertEquals((9 * 60 + 45) * 1000L, WorkoutEngine.estimateDurationMs(example))
         assertTrue(example.validate().isEmpty())
     }
 
@@ -95,15 +95,41 @@ class WorkoutEngineTest {
     }
 
     @Test
-    fun weightStartWaitsThenTimerKeepsGoingIfForceDrops() {
-        val set = WorkoutSet(reps = 1, workSeconds = 3, restSeconds = 0, startMode = StartMode.WEIGHT, thresholdKg = 5.0)
+    fun timerNeverRunsBeforeReachingTheThreshold() {
+        val set = WorkoutSet(reps = 1, workSeconds = 3, restSeconds = 0, thresholdKg = 5.0)
         val e = WorkoutEngine(tpl(set), prepareMs = 0)
-        e.run(1_000, 3.0)
+        e.run(30_000, 3.0) // far below the threshold, whatever the start mode
         assertEquals(EnginePhase.WAITING, e.snapshot().phase)
+        assertTrue(e.snapshot().results.isEmpty())
         e.run(500, 10.0)
-        e.run(2_600, 1.0) // force drops, but the rep still finishes on time
+        assertEquals(EnginePhase.PULL, e.snapshot().phase)
+        assertEquals(3_000L - 400, e.snapshot().displayMs, "first tick starts the pull, the clock follows")
+    }
+
+    @Test
+    fun workTimeOnlyCountsWhileAboveThreshold() {
+        val set = WorkoutSet(reps = 1, workSeconds = 4, restSeconds = 0, thresholdKg = 5.0)
+        val e = WorkoutEngine(tpl(set), prepareMs = 0)
+        e.run(2_000, 10.0)
+        val before = e.snapshot().displayMs
+        e.run(1_000, 1.0) // short dip (< 1.5 s): the clock stops, the rep goes on
+        assertEquals(before, e.snapshot().displayMs)
+        assertEquals(EnginePhase.PULL, e.snapshot().phase)
+        e.run(2_100, 10.0) // pulls again and finishes the 4 s
         assertEquals(EnginePhase.DONE, e.snapshot().phase)
         assertFalse(e.snapshot().results.single().failed)
+    }
+
+    @Test
+    fun droppingBelowThresholdForTooLongMarksFailureAndGoesToRest() {
+        val set = WorkoutSet(reps = 2, workSeconds = 5, restSeconds = 10, thresholdKg = 5.0)
+        val e = WorkoutEngine(tpl(set), prepareMs = 0)
+        e.run(1_000, 10.0)
+        e.run(1_700, 1.0) // more than 1.5 s under the threshold
+        val first = e.snapshot().results.single()
+        assertTrue(first.failed)
+        assertEquals(EnginePhase.REST, e.snapshot().phase)
+        assertEquals(2, e.snapshot().slot!!.rep, "plain sets continue with the next rep")
     }
 
     @Test
@@ -114,7 +140,7 @@ class WorkoutEngineTest {
         e.run(2_000, 20.0) // rep 1 ok
         e.run(1_000, 0.0) // rest
         e.run(1_500, 20.0)
-        e.run(500, 0.0) // rep 2 drops after grace: fail
+        e.run(1_700, 0.0) // rep 2 drops under the threshold for over 1.5 s: fail
         assertTrue(e.snapshot().results.last().failed)
         assertEquals(1, e.snapshot().slot!!.setIndex, "jumps to the next set")
     }
@@ -125,7 +151,7 @@ class WorkoutEngineTest {
         val e = WorkoutEngine(tpl(set), prepareMs = 0)
         e.run(8_000, 20.0)
         assertEquals(EnginePhase.PULL, e.snapshot().phase, "open-ended beyond work seconds")
-        e.run(200, 0.5)
+        e.run(1_700, 0.5)
         assertEquals(EnginePhase.DONE, e.snapshot().phase)
     }
 
