@@ -88,3 +88,40 @@ Esquema v3 (`migrations/2.sqm`): `custom_grip` gana `name`, `finger_count`, `bui
 tabla `grip_evaluation`; `measurement.grip_id`. Los agarres propios de la ronda 2 se
 conservan con la misma etiqueta que tenían. Los registros de agarres propios usan
 `Exercise.CUSTOM` (oculto en selectores).
+
+## Ronda 4
+
+### Gráfica en directo
+`LiveForceTrace` (designsystem) guarda las muestras en `ForceRingBuffer` (core:domain, `LongArray`/`FloatArray`,
+sin objetos por muestra). El `Long` de versión (`tick`) y el reloj de fotogramas (`withFrameNanos`, 60 fps) se leen
+SOLO dentro de `drawWithCache`/`onDrawBehind`: cada muestra invalida el dibujo, no recompone la pantalla. La ventana
+de 10 s se desliza con el tiempo real (150 ms de retardo de render) interpolando entre muestras; Path/Brush/etiquetas
+se reutilizan y se decima a ~0,5 puntos por píxel. Ejes con `niceScale` (0, 10, 20, 30…). Las usan la ejecución, la
+evaluación de agarre y «Medir». El valor grande se publica a 10 Hz como mucho y redondeado a 0,1 kg.
+
+### Flujo de inicio
+Pantalla previa (resumen + estado de la báscula) con **EMPEZAR** → «Prepárate…» 5 s → empieza solo. Con la báscula
+real EMPEZAR queda desactivado hasta recibir lecturas (la simulada siempre puede). Pausa siempre disponible.
+Durante el trabajo se ve el nombre completo del agarre («Semiarqueo 4 dedos · 20 mm») y la mano que toca.
+Botones inferiores: tres `RgStackedButton` iguales (icono arriba, etiqueta de una línea).
+
+### Regla de «Tira»
+El tiempo de trabajo solo corre con fuerza ≥ umbral (2 kg por defecto) y nunca antes de alcanzarlo. Si ya empezó y
+baja del umbral más de 1,5 s: «Parada: fallo», la repetición termina y pasa a descanso (en «Repetición» además se
+cortan las reps restantes de esa serie y mano; en «Tiempo» es el final normal). Tests en `WorkoutEngineTest`.
+
+### Agarres y sesión por defecto
+Predefinidos (editables, no borrables): Semiarqueo 4 dedos, Extensión 3 dedos, Semiestirado 4 dedos (de siempre) y
+Bidedo estirado / arqueado / pistola / pistola arqueado (`presetKey`, guardado como `PRESET:...` en `built_in`).
+Sesión «Entreno de agarre» (se crea una vez): 6 series 6-6-2-2-2-2, 10 s / 20 s, alternando, orden Semiarqueo,
+Extensión, Bidedo estirado, pistola, arqueado, pistola arqueado.
+Cada serie tiene dos bloques «Mano izquierda» / «Mano derecha» con su objetivo (Máximo / zona kg / % de mi registro,
+sobre el máximo de ESE agarre y ESA mano) y su «Hasta el fallo» (`WorkoutSet.targetFor/toFailureFor`; la izquierda sin
+valor propio copia la derecha). El selector de mano por serie desapareció; «Ajustes de la sesión» (plegado) permite
+«Solo derecha / Solo izquierda» y el orden. Esquema v4 (`migrations/3.sqm`).
+
+### Medir
+Inicio y Entrenos → «Medir»: valor actual, MÁXIMO que se mantiene, intentos, «Reiniciar máximo», «¿Quién?» (recuerda
+los últimos). «Guardar»: agarre (biblioteca + dinamómetro), mano y nombre. Perfil → «Mis máximos» (mejor valor por
+agarre y mano, evaluaciones y mediciones propias) y «Registros de amigos» aparte (`MaxRecords`;
+`Measurement.person`, vacío = propio). Los amigos no entran en Evolución, Historial ni Inicio.

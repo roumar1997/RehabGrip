@@ -50,3 +50,14 @@ la opción por defecto en debug, para poder probar en el emulador.
 - Que el byte de unidad sea `1` con la báscula en kg.
 - Frecuencia real en iPhone con «allow duplicates».
 - Si conviene usar el flag «estable» para algo (ahora solo se guarda el pico).
+
+## Ronda 4: señal y diagnóstico
+- **Estado de la señal** (`SignalMonitor`/`SignalInfo`): «Conectando…» los primeros 3 s, «Buscando báscula…» solo tras
+  3 s sin ningún anuncio válido, «Báscula conectada · N lecturas/s» con señal y «Señal perdida» si pasan 3 s sin
+  lecturas.
+- **Formatos aceptados** (`CraneAdvertisementParser.parseAny`): con los 2 bytes del company ID delante (`00 01`, iOS)
+  y sin ellos (Android). `IosCraneForceSource` no filtra por nombre ni servicio.
+- **Perfil → Báscula · diagnóstico Bluetooth**: escanea 15 s sin filtros (Android `AndroidAdvertisementScanner`,
+  iOS `IosAdvertisementScanner`, duplicados permitidos) y lista nombre, RSSI, company ID, bytes en hex, anuncios/s;
+  marca la WH-C06 (company 0x0100 o nombre WH-C06/Crane/IF_B7) y el peso interpretado. «Copiar informe» lo deja en
+  el portapapeles. Probado en emulador solo la pantalla (sin Bluetooth: 0 dispositivos).
