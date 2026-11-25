@@ -1,0 +1,217 @@
+package com.rehabgrip.core.domain.workout
+
+import com.rehabgrip.core.domain.model.Hand
+
+/** One scheduled pull, in strict turn order. [setIndex] 0-based, [rep] 1-based. */
+data class Slot(val setIndex: Int, val rep: Int, val hand: Hand)
+
+enum class EnginePhase { PREPARE, REST, WAITING, PULL, DONE }
+
+data class RepResult(
+    val slot: Slot,
+    val peakKg: Double,
+    val durationMs: Long,
+    val failed: Boolean = false,
+    val skipped: Boolean = false,
+)
+
+sealed interface EngineEvent {
+    data class CountdownTick(val secondsLeft: Int) : EngineEvent
+    data class PullStarted(val slot: Slot) : EngineEvent
+    data class PullEnded(val result: RepResult) : EngineEvent
+    data class TurnSkipped(val slot: Slot) : EngineEvent
+    data object Finished : EngineEvent
+}
+
+data class EngineSnapshot(
+    val phase: EnginePhase,
+    val slot: Slot?,
+    /** Countdown shown big: prepare / rest of the turn hand / work left (elapsed when open-ended). */
+    val displayMs: Long,
+    val zone: TargetZone?,
+    /** Alternating only: the hand that is NOT in turn already finished its rest. */
+    val otherHandReady: Boolean,
+    val otherHand: Hand?,
+    val pullsDone: Int,
+    val results: List<RepResult>,
+)
+
+/**
+ * Pure state machine for a guided session. Each hand has its own rest timer, but the
+ * turn is strict: only the hand of the current [Slot] may start a pull, even when the
+ * other one is rested too. A pull is credited only to the hand in turn.
+ *
+ * [recordKg] gives the last record of a hand for a grip (for % targets).
+ */
+class WorkoutEngine(
+    private val template: WorkoutTemplate,
+    private val recordKg: (Hand, Grip) -> Double? = { _, _ -> null },
+    private val prepareMs: Long = PREPARE_MS,
+) {
+    private val slots: MutableList<Slot> = buildSlots(template).toMutableList()
+    private val rest = mutableMapOf(Hand.RIGHT to 0L, Hand.LEFT to 0L)
+    private val results = mutableListOf<RepResult>()
+    private var index = 0
+    private var prepareLeft = prepareMs
+    private var pulling = false
+    private var pullMs = 0L
+    private var peak = 0.0
+    private var lastCountdown = Int.MAX_VALUE
+
+    val alternating: Boolean = template.handMode == HandMode.ALTERNATING
+
+    private val current: Slot? get() = slots.getOrNull(index)
+    private fun setOf(slot: Slot) = template.sets[slot.setIndex]
+
+    fun zoneFor(slot: Slot): TargetZone? = setOf(slot).target.resolve(recordKg(slot.hand, setOf(slot).grip))
+
+    /** Advances time by [dtMs] with the latest force reading [kg]. */
+    fun tick(dtMs: Long, kg: Double): List<EngineEvent> {
+        val events = mutableListOf<EngineEvent>()
+        if (prepareLeft > 0) {
+            prepareLeft = (prepareLeft - dtMs).coerceAtLeast(0)
+            countdown(prepareLeft, events)
+            if (prepareLeft > 0) return events
+        } else {
+            rest.keys.forEach { h -> rest[h] = (rest.getValue(h) - dtMs).coerceAtLeast(0) }
+        }
+        val slot = current ?: return events
+        val set = setOf(slot)
+        if (!pulling) {
+            val left = rest.getValue(slot.hand)
+            countdown(left, events)
+            if (left > 0) return events
+            val startKg = maxOf(set.thresholdKg, zoneFor(slot)?.minKg ?: 0.0)
+            if (set.startMode == StartMode.WEIGHT && kg < startKg) return events
+            pulling = true
+            pullMs = 0
+            peak = kg
+            lastCountdown = Int.MAX_VALUE
+            events += EngineEvent.PullStarted(slot)
+            return events
+        }
+        pullMs += dtMs
+        peak = maxOf(peak, kg)
+        val workMs = set.workSeconds * 1000L
+        val dropped = pullMs > GRACE_MS && kg < set.thresholdKg
+        when (set.toFailure) {
+            ToFailure.TIME -> if (dropped || pullMs >= MAX_OPEN_PULL_MS) endPull(slot, failed = false, events)
+            ToFailure.REPS -> when {
+                pullMs >= workMs -> endPull(slot, failed = false, events)
+                dropped -> {
+                    endPull(slot, failed = true, events)
+                    dropRemainingReps(slot)
+                }
+            }
+            ToFailure.OFF -> if (pullMs >= workMs) endPull(slot, failed = false, events)
+        }
+        if (current == null && events.none { it is EngineEvent.Finished }) events += EngineEvent.Finished
+        return events
+    }
+
+    /** Gives up the current turn (only when not pulling). The other hand is next. */
+    fun skipTurn(): List<EngineEvent> {
+        val slot = current ?: return emptyList()
+        if (pulling) return emptyList()
+        results += RepResult(slot, 0.0, 0, skipped = true)
+        index++
+        return listOfNotNull(EngineEvent.TurnSkipped(slot), if (current == null) EngineEvent.Finished else null)
+    }
+
+    fun snapshot(): EngineSnapshot {
+        val slot = current
+        val set = slot?.let(::setOf)
+        val phase = when {
+            slot == null -> EnginePhase.DONE
+            prepareLeft > 0 -> EnginePhase.PREPARE
+            pulling -> EnginePhase.PULL
+            rest.getValue(slot.hand) > 0 -> EnginePhase.REST
+            else -> EnginePhase.WAITING
+        }
+        val display = when (phase) {
+            EnginePhase.PREPARE -> prepareLeft
+            EnginePhase.REST -> rest.getValue(slot!!.hand)
+            EnginePhase.PULL -> if (set!!.toFailure == ToFailure.TIME) pullMs else (set.workSeconds * 1000L - pullMs).coerceAtLeast(0)
+            else -> 0
+        }
+        val other = slot?.hand?.other?.takeIf { alternating }
+        return EngineSnapshot(
+            phase = phase,
+            slot = slot,
+            displayMs = display,
+            zone = slot?.let(::zoneFor),
+            otherHandReady = other != null && rest.getValue(other) == 0L && phase != EnginePhase.PREPARE,
+            otherHand = other,
+            pullsDone = results.count { !it.skipped },
+            results = results.toList(),
+        )
+    }
+
+    /** Slots still to run (for "rep 3/6"). */
+    fun repsInSet(slot: Slot): Int = slots.count { it.setIndex == slot.setIndex && it.hand == slot.hand }
+
+    private fun endPull(slot: Slot, failed: Boolean, events: MutableList<EngineEvent>) {
+        val result = RepResult(slot, peak, pullMs, failed = failed)
+        results += result
+        pulling = false
+        index++
+        rest[slot.hand] = if (current == null) 0 else setOf(slot).restSeconds * 1000L
+        events += EngineEvent.PullEnded(result)
+    }
+
+    private fun dropRemainingReps(failedSlot: Slot) {
+        val tail = slots.subList(index, slots.size)
+        tail.removeAll { it.setIndex == failedSlot.setIndex && it.hand == failedSlot.hand }
+    }
+
+    private fun countdown(leftMs: Long, events: MutableList<EngineEvent>) {
+        val secs = ((leftMs + 999) / 1000).toInt()
+        if (leftMs > 0 && secs <= 3 && secs < lastCountdown) {
+            events += EngineEvent.CountdownTick(secs)
+        }
+        lastCountdown = if (leftMs == 0L) Int.MAX_VALUE else secs
+    }
+
+    companion object {
+        const val PREPARE_MS = 10_000L
+        const val GRACE_MS = 1_000L
+        const val MAX_OPEN_PULL_MS = 300_000L
+        const val MAX_REPS_TO_FAILURE = 50
+
+        /** Strict turn order for the whole session. */
+        fun buildSlots(t: WorkoutTemplate): List<Slot> {
+            val a = t.firstHand
+            val b = a.other
+            fun handsFor(set: WorkoutSet): List<Hand> = when (set.hand) {
+                SetHand.RIGHT -> listOf(Hand.RIGHT)
+                SetHand.LEFT -> listOf(Hand.LEFT)
+                SetHand.SESSION -> if (t.handMode == HandMode.SINGLE) listOf(a) else listOf(a, b)
+            }
+            fun reps(set: WorkoutSet) = if (set.toFailure == ToFailure.REPS) MAX_REPS_TO_FAILURE else set.reps
+            if (t.handMode == HandMode.BOTH_SEQUENTIAL) {
+                return listOf(a, b).flatMap { hand ->
+                    t.sets.withIndex().filter { hand in handsFor(it.value) }
+                        .flatMap { (i, s) -> (1..reps(s)).map { Slot(i, it, hand) } }
+                }
+            }
+            return t.sets.withIndex().flatMap { (i, s) ->
+                (1..reps(s)).flatMap { rep -> handsFor(s).map { Slot(i, rep, it) } }
+            }
+        }
+
+        /** «Duración estimada»: runs the plan as if every rep went to schedule. */
+        fun estimateDurationMs(t: WorkoutTemplate): Long {
+            val plain = t.copy(sets = t.sets.map { it.copy(toFailure = ToFailure.OFF, startMode = StartMode.TIME) })
+            val engine = WorkoutEngine(plain)
+            var elapsed = 0L
+            while (engine.current != null && elapsed < MAX_ESTIMATE_MS) {
+                engine.tick(STEP_MS, 1_000.0)
+                elapsed += STEP_MS
+            }
+            return elapsed
+        }
+
+        private const val STEP_MS = 1_000L
+        private const val MAX_ESTIMATE_MS = 6L * 60 * 60 * 1000
+    }
+}

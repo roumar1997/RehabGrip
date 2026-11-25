@@ -1,5 +1,6 @@
 package com.rehabgrip.core.domain.usecase
 
+import com.rehabgrip.core.domain.model.Discomfort
 import com.rehabgrip.core.domain.model.Exercise
 import com.rehabgrip.core.domain.model.Hand
 import com.rehabgrip.core.domain.model.Measurement
@@ -15,6 +16,7 @@ class SaveMeasurement(private val repository: MeasurementRepository) {
         source: MeasurementSource,
         epochMillis: Long,
         note: String = "",
+        discomforts: List<Discomfort> = emptyList(),
     ): Result<Long> {
         if (kg <= 0.0 || kg > MAX_KG) return Result.failure(IllegalArgumentException("kg out of range: $kg"))
         val id = repository.add(
@@ -25,6 +27,8 @@ class SaveMeasurement(private val repository: MeasurementRepository) {
                 epochMillis = epochMillis,
                 source = source,
                 note = note.trim(),
+                // One entry per zone: the last level given wins.
+                discomforts = discomforts.reversed().distinctBy { it.zone.trim().lowercase() }.reversed(),
             ),
         )
         return Result.success(id)

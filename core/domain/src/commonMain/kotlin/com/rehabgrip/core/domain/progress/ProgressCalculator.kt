@@ -34,12 +34,29 @@ data class ProgressSummary(
     val spanDays: Int,
 ) {
     /** Latest right value as % of latest left value (100 % = symmetry). */
-    val rightVsLeftPercent: Double?
-        get() {
-            val r = right.lastKg ?: return null
-            val l = left.lastKg ?: return null
-            return if (l == 0.0) null else r / l * 100.0
-        }
+    val rightVsLeftPercent: Double? get() = symmetryPercent(Hand.RIGHT)
+
+    fun of(hand: Hand) = if (hand == Hand.RIGHT) right else left
+
+    /** Latest [focus] value as % of the latest value of the other hand. */
+    fun symmetryPercent(focus: Hand): Double? = ratio(of(focus).lastKg, of(focus.other).lastKg)
+
+    /** Symmetry on the first day both hands were measured (start of the trend). */
+    fun firstSymmetryPercent(focus: Hand): Double? {
+        val other = of(focus.other).points.associateBy { it.date }
+        val first = of(focus).points.firstOrNull { it.date in other } ?: return null
+        return ratio(first.kg, other.getValue(first.date).kg)
+    }
+
+    /** Change in symmetry points since the start (positive = closing the gap). */
+    fun symmetryTrend(focus: Hand): Double? {
+        val now = symmetryPercent(focus) ?: return null
+        val first = firstSymmetryPercent(focus) ?: return null
+        return now - first
+    }
+
+    private fun ratio(a: Double?, b: Double?): Double? =
+        if (a == null || b == null || b == 0.0) null else a / b * 100.0
 }
 
 /**
@@ -69,10 +86,9 @@ class ProgressCalculator(private val timeZone: TimeZone = TimeZone.currentSystem
     }
 
     private fun handProgress(list: List<Measurement>, hand: Hand): HandProgress {
-        val points = list.filter { it.hand == hand }
+        val byDay = list.filter { it.hand == hand }
             .groupBy { Instant.fromEpochMilliseconds(it.epochMillis).toLocalDateTime(timeZone).date }
-            .map { (date, day) -> DayPoint(date, day.maxOf { it.kg }) }
-            .sortedBy { it.date }
+        val points = byDay.map { (date, day) -> DayPoint(date, day.maxOf { it.kg }) }.sortedBy { it.date }
         return HandProgress(
             hand = hand,
             points = points,

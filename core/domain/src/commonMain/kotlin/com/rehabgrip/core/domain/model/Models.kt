@@ -1,7 +1,11 @@
 package com.rehabgrip.core.domain.model
 
 /** Which hand a measurement belongs to. Mandatory on every record. */
-enum class Hand { RIGHT, LEFT }
+enum class Hand {
+    RIGHT, LEFT;
+
+    val other: Hand get() = if (this == RIGHT) LEFT else RIGHT
+}
 
 /** Grip exercises. [usesScale] = measured with the Crane WH-C06 on a 20 mm wooden edge. */
 enum class Exercise(val usesScale: Boolean) {
@@ -28,7 +32,29 @@ data class Measurement(
     val epochMillis: Long,
     val source: MeasurementSource,
     val note: String = "",
+    /** Optional discomforts noted when saving (zone + level 0-10). */
+    val discomforts: List<Discomfort> = emptyList(),
 )
+
+/** One discomfort: predefined or free-text zone and level 0-10. */
+data class Discomfort(val zone: String, val level: Int) {
+    init {
+        require(level in 0..10) { "level out of range: $level" }
+        require(zone.isNotBlank()) { "zone is blank" }
+    }
+}
+
+enum class Finger { THUMB, INDEX, MIDDLE, RING, LITTLE }
+
+/** Injured/operated hand (null = none) and, optionally, which fingers. */
+data class Injury(val hand: Hand?, val fingers: Set<Finger> = emptySet()) {
+    /** Hand compared against the healthy one; right when nothing is injured. */
+    val focusHand: Hand get() = hand ?: Hand.RIGHT
+
+    companion object {
+        val NONE = Injury(null)
+    }
+}
 
 data class UserProfile(val name: String)
 
