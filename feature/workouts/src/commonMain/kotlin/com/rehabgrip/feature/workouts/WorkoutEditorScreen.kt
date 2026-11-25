@@ -193,7 +193,8 @@ private fun RowScope.ToolButton(text: String, icon: androidx.compose.ui.graphics
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(icon, null, tint = if (active) androidx.compose.ui.graphics.Color.White else RgColors.Primary, modifier = Modifier.size(20.dp))
-        Text(" $text", style = MaterialTheme.typography.titleSmall, color = if (active) androidx.compose.ui.graphics.Color.White else RgColors.Navy)
+        androidx.compose.foundation.layout.Spacer(Modifier.width(6.dp))
+        Text(text, style = MaterialTheme.typography.titleSmall, color = if (active) androidx.compose.ui.graphics.Color.White else RgColors.Navy)
     }
 }
 

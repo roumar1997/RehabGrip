@@ -103,7 +103,7 @@ fun ProgressScreen(measurements: List<Measurement>, nowMillis: Long, injury: Inj
     }
 }
 
-private enum class ProgressView(val label: String) { COMPARE("Lesionada vs sana"), HANDS("Por mano"), DISCOMFORT("Molestias") }
+private enum class ProgressView(val label: String) { COMPARE("Comparar"), HANDS("Por mano"), DISCOMFORT("Molestias") }
 
 @Composable
 internal fun ExercisePicker(selected: Exercise, onSelect: (Exercise) -> Unit) {

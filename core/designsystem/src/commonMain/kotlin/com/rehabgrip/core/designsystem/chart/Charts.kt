@@ -42,7 +42,7 @@ fun LineChart(series: List<ChartSeries>, xLabels: List<String>, modifier: Modifi
         val all = series.flatMap { it.points }
         val yMax = niceMax((all.maxOfOrNull { it.second } ?: 10f) * 1.1f)
         val yMin = max(0f, (all.minOfOrNull { it.second } ?: 0f) * 0.8f).let { (it / 10).toInt() * 10f }
-        val left = 34.dp2px(this)
+        val left = 40.dp2px(this)
         val bottom = size.height - 22.dp2px(this)
         val top = 8.dp2px(this)
         val right = size.width - 8.dp2px(this)
@@ -90,7 +90,7 @@ fun LiveForceChart(
         val visible = samples.filter { it.tMillis >= start }
         val zoneTop = (zone?.maxKg ?: zone?.minKg ?: 0.0).toFloat()
         val yMax = niceMax(max(max(20f, zoneTop * 1.25f), (peak?.kg?.toFloat() ?: 0f) * 1.15f), 20f)
-        val left = 34.dp2px(this)
+        val left = 40.dp2px(this)
         val bottom = size.height - 22.dp2px(this)
         val top = 30.dp2px(this)
         val right = size.width - 8.dp2px(this)

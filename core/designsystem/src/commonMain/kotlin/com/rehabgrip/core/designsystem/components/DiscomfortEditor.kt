@@ -40,6 +40,9 @@ import com.rehabgrip.core.domain.model.Finger
 import com.rehabgrip.core.domain.model.Hand
 import kotlin.math.roundToInt
 
+/** Short finger names that fit five in a row on the narrowest phones. */
+private val fingerShort = listOf("Pulg", "Índ", "Cor", "Anul", "Meñ")
+
 /** Colour for a 0-10 level: green -> amber -> red. */
 fun discomfortColor(level: Int): Color = when {
     level <= 2 -> RgColors.Success
@@ -126,7 +129,7 @@ private fun ZonePickerDialog(defaultHand: Hand, onDismiss: () -> Unit, onPick: (
                 RgSegmented(Hand.entries, hand, { Labels.hand(it) }, { hand = it })
                 ZoneChips(DiscomfortZones.general(hand), onPick)
                 Text("Dedo y poleas", style = MaterialTheme.typography.labelMedium, color = RgColors.TextSecondary)
-                RgSegmented(Finger.entries, finger, { DiscomfortZones.fingerName(it).take(4) }, { finger = it })
+                RgSegmented(Finger.entries, finger, { fingerShort[it.ordinal] }, { finger = it })
                 ZoneChips(DiscomfortZones.finger(hand, finger), onPick)
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     OutlinedTextField(
