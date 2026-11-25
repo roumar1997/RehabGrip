@@ -18,6 +18,8 @@ class KmpLibraryConventionPlugin : Plugin<Project> {
             iosArm64()
             iosSimulatorArm64()
             applyDefaultHierarchyTemplate()
+            // CoreBluetooth/UIKit (iOS) usan cinterop experimental: opt-in para todo el modulo.
+            sourceSets.all { languageSettings.optIn("kotlinx.cinterop.ExperimentalForeignApi") }
             sourceSets.getByName("commonTest").dependencies { implementation(kotlin("test")) }
         }
         extensions.configure<LibraryExtension> {
