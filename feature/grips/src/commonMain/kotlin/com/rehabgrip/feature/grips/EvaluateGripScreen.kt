@@ -31,6 +31,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.rehabgrip.core.ble.ScaleStatus
 import com.rehabgrip.core.designsystem.chart.LiveForceChart
+import com.rehabgrip.core.designsystem.chart.LiveForceTrace
 import com.rehabgrip.core.designsystem.components.InjuryLabels
 import com.rehabgrip.core.designsystem.components.RgCard
 import com.rehabgrip.core.designsystem.components.RgInfoBanner
@@ -51,6 +52,7 @@ fun EvaluateGripScreen(
     grip: GripSpec,
     injury: Injury,
     state: EvaluationState,
+    trace: LiveForceTrace,
     previous: Map<Hand, GripRecord?>,
     onBack: () -> Unit,
     onMeasure: (Hand) -> Unit,
@@ -72,7 +74,7 @@ fun EvaluateGripScreen(
             }
             val measuring = state.measuring
             if (measuring != null) {
-                LivePanel(measuring, injury, state, onStop)
+                LivePanel(measuring, injury, state, trace, onStop)
             } else {
                 RgInfoBanner(
                     "Recomendado antes de entrenar: tira lo más fuerte que puedas y mantén unos segundos. " +
@@ -146,7 +148,7 @@ private fun HandCard(
 }
 
 @Composable
-private fun LivePanel(hand: Hand, injury: Injury, state: EvaluationState, onStop: () -> Unit) {
+private fun LivePanel(hand: Hand, injury: Injury, state: EvaluationState, trace: LiveForceTrace, onStop: () -> Unit) {
     RgCard(Modifier.fillMaxWidth()) {
         Text(
             "Mano ${InjuryLabels.handRole(hand, injury).lowercase()}: ¡tira lo más fuerte que puedas!",
@@ -154,7 +156,7 @@ private fun LivePanel(hand: Hand, injury: Injury, state: EvaluationState, onStop
         )
         Text("${formatKg(state.currentKg)} kg", style = MaterialTheme.typography.displayMedium, color = RgColors.Navy)
         Text("Máximo: ${formatKg(state.peakKg)} kg", style = MaterialTheme.typography.titleSmall, color = RgColors.Primary)
-        LiveForceChart(state.samples, null, Modifier.fillMaxWidth().height(200.dp))
+        LiveForceChart(trace, Modifier.fillMaxWidth().height(200.dp))
         if (state.status != ScaleStatus.RECEIVING) {
             Text("${state.sourceName}: buscando señal…", style = MaterialTheme.typography.bodySmall, color = RgColors.Warning)
         }

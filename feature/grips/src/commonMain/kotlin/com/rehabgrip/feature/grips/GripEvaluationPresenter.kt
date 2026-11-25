@@ -3,7 +3,7 @@ package com.rehabgrip.feature.grips
 import com.rehabgrip.core.ble.ForceSource
 import com.rehabgrip.core.ble.ScaleStatus
 import com.rehabgrip.core.domain.grip.HoldStats
-import com.rehabgrip.core.domain.model.ForceSample
+import com.rehabgrip.core.designsystem.chart.LiveForceTrace
 import com.rehabgrip.core.domain.model.Hand
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -12,7 +12,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlin.time.TimeSource
 
 /** Value measured (or typed) for one hand. */
 data class HandEvaluation(val maxKg: Double, val minKg: Double?, val avgKg: Double?, val fromScale: Boolean)
@@ -24,7 +23,6 @@ data class EvaluationState(
     val measuring: Hand? = null,
     val currentKg: Double = 0.0,
     val peakKg: Double = 0.0,
-    val samples: List<ForceSample> = emptyList(),
     val results: Map<Hand, HandEvaluation> = emptyMap(),
     val message: String? = null,
 )
@@ -39,7 +37,8 @@ class GripEvaluationPresenter(
 ) {
     private val _state = MutableStateFlow(EvaluationState(sourceName = source.name))
     val state: StateFlow<EvaluationState> = _state.asStateFlow()
-    private val startMark = TimeSource.Monotonic.markNow()
+    /** Live graph samples (drawn without recomposing). */
+    val trace = LiveForceTrace()
     private val buffer = mutableListOf<Double>()
     private var jobs: List<Job> = emptyList()
 
@@ -52,21 +51,22 @@ class GripEvaluationPresenter(
     }
 
     private fun onReading(kg: Double) {
+        trace.add(kg)
         val s = _state.value
         if (s.measuring == null) {
             _state.update { it.copy(currentKg = kg) }
             return
         }
         buffer += kg
-        val sample = ForceSample(startMark.elapsedNow().inWholeMilliseconds, kg)
         _state.update {
-            it.copy(currentKg = kg, peakKg = maxOf(it.peakKg, kg), samples = (it.samples + sample).takeLast(MAX_SAMPLES))
+            it.copy(currentKg = kg, peakKg = maxOf(it.peakKg, kg))
         }
     }
 
     fun beginMeasure(hand: Hand) {
         buffer.clear()
-        _state.update { it.copy(measuring = hand, peakKg = 0.0, samples = emptyList(), message = null) }
+        _state.update { it.copy(measuring = hand, peakKg = 0.0, message = null) }
+        trace.clear()
         source.setEffort(true, if (hand == Hand.RIGHT) SIM_RIGHT_STRENGTH else 1.0)
     }
 
@@ -96,7 +96,6 @@ class GripEvaluationPresenter(
     }
 
     private companion object {
-        const val MAX_SAMPLES = 400
         const val MIN_VALID_KG = 1.0
         const val SIM_RIGHT_STRENGTH = 0.85
     }

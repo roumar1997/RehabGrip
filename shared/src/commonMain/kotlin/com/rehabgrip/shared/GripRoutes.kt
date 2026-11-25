@@ -51,6 +51,7 @@ internal fun GripEvaluateRoute(grip: GripSpec, container: AppContainer, session:
         grip = grip,
         injury = session.injury,
         state = state,
+        trace = presenter.trace,
         previous = previous,
         onBack = onClose,
         onMeasure = presenter::beginMeasure,

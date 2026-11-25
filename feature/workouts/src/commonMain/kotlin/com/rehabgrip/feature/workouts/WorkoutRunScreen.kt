@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.rehabgrip.core.ble.ScaleStatus
 import com.rehabgrip.core.designsystem.chart.LiveForceChart
+import com.rehabgrip.core.designsystem.chart.LiveForceTrace
 import com.rehabgrip.core.designsystem.components.RgCard
 import com.rehabgrip.core.designsystem.components.RgPrimaryButton
 import com.rehabgrip.core.designsystem.components.RgTopBar
@@ -51,6 +52,7 @@ internal fun handName(hand: Hand) = if (hand == Hand.RIGHT) "DERECHA" else "IZQU
 fun WorkoutRunScreen(
     template: WorkoutTemplate,
     state: RunState,
+    trace: LiveForceTrace,
     onTogglePause: () -> Unit,
     onSkip: () -> Unit,
     onFinish: () -> Unit,
@@ -109,7 +111,7 @@ fun WorkoutRunScreen(
                     Text("${formatKg(state.currentKg)} kg", style = MaterialTheme.typography.headlineMedium, color = RgColors.Navy, modifier = Modifier.weight(1f))
                     ZoneChip(phase, state.zoneStatus, snap.zone != null)
                 }
-                LiveForceChart(state.samples, null, Modifier.fillMaxWidth().weight(1f), zone = snap.zone)
+                LiveForceChart(trace, Modifier.fillMaxWidth().weight(1f), zone = snap.zone)
                 if (state.status != ScaleStatus.RECEIVING) {
                     Text("${state.sourceName}: buscando señal…", style = MaterialTheme.typography.bodySmall, color = RgColors.Warning)
                 }

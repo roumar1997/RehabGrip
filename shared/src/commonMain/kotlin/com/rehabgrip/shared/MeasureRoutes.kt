@@ -81,6 +81,7 @@ private fun LiveRoute(route: Route.Live, container: AppContainer, navigator: Nav
         exercise = route.exercise,
         hand = route.hand,
         state = state,
+        trace = presenter.trace,
         onBack = { navigator.pop() },
         onToggleRecording = presenter::toggleRecording,
         onFinish = {

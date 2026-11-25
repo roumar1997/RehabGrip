@@ -2,6 +2,7 @@ package com.rehabgrip.feature.workouts
 
 import com.rehabgrip.core.ble.ForceSource
 import com.rehabgrip.core.ble.ScaleStatus
+import com.rehabgrip.core.designsystem.chart.LiveForceTrace
 import com.rehabgrip.core.domain.model.ForceSample
 import com.rehabgrip.core.domain.model.Hand
 import com.rehabgrip.core.domain.port.CuePlayer
@@ -30,7 +31,6 @@ data class RunState(
     val status: ScaleStatus = ScaleStatus.IDLE,
     val sourceName: String = "",
     val currentKg: Double = 0.0,
-    val samples: List<ForceSample> = emptyList(),
     val zoneStatus: ZoneStatus = ZoneStatus.IN,
     val paused: Boolean = false,
     val totalSlots: Int = 0,
@@ -59,10 +59,13 @@ class WorkoutRunPresenter(
     val state: StateFlow<RunState> = _state.asStateFlow()
     private val jobs = mutableListOf<Job>()
 
+    /** Live graph samples (drawn without recomposing). */
+    val trace = LiveForceTrace()
+
     fun start() {
         source.start()
         jobs += scope.launch { source.status.collect { s -> _state.update { it.copy(status = s) } } }
-        jobs += scope.launch { source.readings.collect { latestKg = it.kg } }
+        jobs += scope.launch { source.readings.collect { latestKg = it.kg; trace.add(it.kg) } }
         jobs += scope.launch {
             var last = clock.elapsedNow().inWholeMilliseconds
             while (isActive) {
@@ -113,7 +116,6 @@ class WorkoutRunPresenter(
             it.copy(
                 snapshot = snap,
                 currentKg = kg,
-                samples = (it.samples + sample).takeLast(MAX_SAMPLES),
                 zoneStatus = zs,
                 results = stats.results(),
             )
@@ -137,7 +139,6 @@ class WorkoutRunPresenter(
     private companion object {
         const val TICK_MS = 50L
         const val SIM_RIGHT_STRENGTH = 0.85
-        const val MAX_SAMPLES = 400
         const val ABOVE_EVERY_MS = 700L
         const val BELOW_EVERY_MS = 2_000L
     }

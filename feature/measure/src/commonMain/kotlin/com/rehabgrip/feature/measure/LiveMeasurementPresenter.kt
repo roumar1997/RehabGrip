@@ -2,6 +2,7 @@ package com.rehabgrip.feature.measure
 
 import com.rehabgrip.core.ble.ForceSource
 import com.rehabgrip.core.ble.ScaleStatus
+import com.rehabgrip.core.designsystem.chart.LiveForceTrace
 import com.rehabgrip.core.domain.model.ForceSample
 import com.rehabgrip.core.domain.session.Attempt
 import com.rehabgrip.core.domain.session.AttemptTracker
@@ -20,7 +21,6 @@ data class LiveState(
     val recording: Boolean = true,
     val currentKg: Double = 0.0,
     val peak: ForceSample? = null,
-    val samples: List<ForceSample> = emptyList(),
     val attempts: List<Attempt> = emptyList(),
 )
 
@@ -38,6 +38,9 @@ class LiveMeasurementPresenter(
     private var jobs: List<Job> = emptyList()
     private val startMark = TimeSource.Monotonic.markNow()
 
+    /** Live graph samples (drawn without recomposing). */
+    val trace = LiveForceTrace()
+
     fun start() {
         source.start()
         jobs = listOf(
@@ -53,12 +56,12 @@ class LiveMeasurementPresenter(
 
     private fun onSample(sample: ForceSample) {
         tracker.add(sample)
+        trace.add(sample.kg)
         _state.update { s ->
             val newPeak = if (s.peak == null || sample.kg > s.peak.kg) sample else s.peak
             s.copy(
                 currentKg = sample.kg,
                 peak = newPeak,
-                samples = (s.samples + sample).takeLast(MAX_BUFFER),
                 attempts = tracker.attempts,
             )
         }
@@ -72,7 +75,4 @@ class LiveMeasurementPresenter(
         source.stop()
     }
 
-    private companion object {
-        const val MAX_BUFFER = 1_200
-    }
 }

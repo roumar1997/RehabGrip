@@ -35,6 +35,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.rehabgrip.core.ble.ScaleStatus
 import com.rehabgrip.core.designsystem.chart.LiveForceChart
+import com.rehabgrip.core.designsystem.chart.LiveForceTrace
 import com.rehabgrip.core.designsystem.components.Labels
 import com.rehabgrip.core.designsystem.components.RgCard
 import com.rehabgrip.core.designsystem.components.RgPrimaryButton
@@ -49,6 +50,7 @@ fun LiveMeasurementScreen(
     exercise: Exercise,
     hand: Hand,
     state: LiveState,
+    trace: LiveForceTrace,
     onBack: () -> Unit,
     onToggleRecording: () -> Unit,
     onFinish: () -> Unit,
@@ -83,7 +85,7 @@ fun LiveMeasurementScreen(
                 )
             }
             RgCard(Modifier.fillMaxWidth().weight(1f)) {
-                LiveForceChart(state.samples, state.peak, Modifier.fillMaxWidth().weight(1f))
+                LiveForceChart(trace, Modifier.fillMaxWidth().weight(1f))
                 AttemptChips(state)
             }
         }
