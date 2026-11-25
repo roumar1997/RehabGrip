@@ -78,7 +78,7 @@ class MainActivity : ComponentActivity() {
         val send = Intent(Intent.ACTION_SEND).apply {
             type = "text/csv"
             putExtra(Intent.EXTRA_STREAM, uri)
-            putExtra(Intent.EXTRA_SUBJECT, "RehabGrip · datos de fuerza")
+            putExtra(Intent.EXTRA_SUBJECT, "Rehagrip · datos de fuerza")
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
         startActivity(Intent.createChooser(send, "Exportar datos"))

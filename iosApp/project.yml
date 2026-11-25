@@ -17,12 +17,12 @@ targets:
     info:
       path: iosApp/Info.plist
       properties:
-        CFBundleDisplayName: RehabGrip
+        CFBundleDisplayName: Rehagrip
         CFBundleShortVersionString: "$(MARKETING_VERSION)"
         CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
         UILaunchScreen: {}
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
-        NSBluetoothAlwaysUsageDescription: "RehabGrip usa Bluetooth para leer tu báscula de fuerza"
+        NSBluetoothAlwaysUsageDescription: "Rehagrip usa Bluetooth para leer tu báscula de fuerza"
         # Reminders are local notifications: iOS asks at runtime (UNUserNotificationCenter),
         # there is no Info.plist usage key for them.
         ITSAppUsesNonExemptEncryption: false

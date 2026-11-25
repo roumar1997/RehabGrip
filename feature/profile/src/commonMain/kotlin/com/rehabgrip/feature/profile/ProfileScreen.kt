@@ -132,7 +132,7 @@ fun ProfileScreen(
                 HorizontalDivider(color = RgColors.Outline)
                 Option(Icons.Rounded.Lightbulb, "Información y consejos") { dialog = DIALOG_TIPS }
                 HorizontalDivider(color = RgColors.Outline)
-                Option(Icons.Rounded.Info, "Acerca de RehabGrip") { dialog = DIALOG_ABOUT }
+                Option(Icons.Rounded.Info, "Acerca de Rehagrip") { dialog = DIALOG_ABOUT }
             }
             if (state.showDeveloperOptions) {
                 RgCard(Modifier.fillMaxWidth(), padding = PaddingValues(horizontal = 16.dp, vertical = 4.dp)) {
@@ -156,7 +156,7 @@ fun ProfileScreen(
         DIALOG_INJURY -> InjuryDialog(state.injury, { dialog = null }) { onInjury(it); dialog = null }
         DIALOG_NAME -> RenameDialog(state.name, { dialog = null }) { onRename(it); dialog = null }
         DIALOG_TIPS -> InfoDialog("Información y consejos", TIPS) { dialog = null }
-        DIALOG_ABOUT -> InfoDialog("Acerca de RehabGrip", ABOUT) { dialog = null }
+        DIALOG_ABOUT -> InfoDialog("Acerca de Rehagrip", ABOUT) { dialog = null }
         DIALOG_SAMPLE -> AlertDialog(
             onDismissRequest = { dialog = null },
             title = { Text("¿Cargar datos de ejemplo?") },
@@ -236,7 +236,7 @@ private val TIPS = """
 """.trimIndent()
 
 private val ABOUT = """
-    RehabGrip registra tu fuerza de agarre durante la rehabilitación.
+    Rehagrip registra tu fuerza de agarre durante la rehabilitación.
     Funciona sin cuenta: todo se guarda solo en este móvil.
     Compatible con la báscula Crane Scale WH-C06 por Bluetooth (lee sus anuncios, no hace falta emparejarla).
     Tipografía Nunito (SIL Open Font License).

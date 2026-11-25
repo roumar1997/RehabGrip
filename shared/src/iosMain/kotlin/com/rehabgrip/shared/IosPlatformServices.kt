@@ -95,7 +95,7 @@ internal class IosReminderScheduler : ReminderScheduler {
     override fun showTest() {
         val trigger = UNTimeIntervalNotificationTrigger.triggerWithTimeInterval(1.0, repeats = false)
         center.addNotificationRequest(
-            UNNotificationRequest.requestWithIdentifier("reminder-test", content("Así te llegarán los recordatorios de RehabGrip."), trigger),
+            UNNotificationRequest.requestWithIdentifier("reminder-test", content("Así te llegarán los recordatorios de Rehagrip."), trigger),
             withCompletionHandler = null,
         )
     }

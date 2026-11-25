@@ -34,7 +34,7 @@ class AndroidReminderScheduler(
 
     override suspend fun ensurePermission(): Boolean = requestPermission()
 
-    override fun showTest() = notify(context, TEST_ID.toInt(), "Así te llegarán los recordatorios de RehabGrip.")
+    override fun showTest() = notify(context, TEST_ID.toInt(), "Así te llegarán los recordatorios de Rehagrip.")
 
     companion object {
         private const val CHANNEL = "reminders"

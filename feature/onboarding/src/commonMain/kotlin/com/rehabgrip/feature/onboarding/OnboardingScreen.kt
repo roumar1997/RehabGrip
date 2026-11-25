@@ -72,7 +72,7 @@ fun OnboardingScreen(onFinished: (name: String, injury: Injury) -> Unit) {
             Spacer(Modifier.height(56.dp))
             Image(Brand.Mountain, null, Modifier.fillMaxWidth(0.62f).aspectRatio(200f / 110f))
             Spacer(Modifier.height(12.dp))
-            Text("RehabGrip", style = MaterialTheme.typography.displayMedium, color = RgColors.Navy)
+            Text("Rehagrip", style = MaterialTheme.typography.displayMedium, color = RgColors.Navy)
             Text(
                 "Tu rehabilitación\nen buenas manos",
                 style = MaterialTheme.typography.titleLarge,
