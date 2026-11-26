@@ -27,3 +27,20 @@ object ScaleBook {
 
     fun remove(scales: List<SavedScale>, id: String): List<SavedScale> = scales.filterNot { it.id == id }
 }
+
+/** A row of «Mis básculas»: a saved scale and/or one seen right now. */
+data class ScaleRow(val scale: SavedScale, val rssi: Int?, val visible: Boolean, val saved: Boolean)
+
+object LiveScales {
+    /**
+     * Saved scales first (with their live signal when seen now), then the scales seen now that are not
+     * saved yet (they are saved automatically, this is just so the list never looks empty meanwhile).
+     */
+    fun merge(saved: List<SavedScale>, seen: List<SeenDevice>): List<ScaleRow> {
+        val bySeen = seen.filter { it.looksLikeScale }.associateBy { it.id }
+        val rows = saved.map { s -> ScaleRow(s, bySeen[s.id]?.rssi, visible = s.id in bySeen, saved = true) }
+        val extra = bySeen.values.filter { d -> saved.none { it.id == d.id } }
+            .sortedByDescending { it.rssi }.map { d -> ScaleRow(SavedScale(d.id, d.name), d.rssi, visible = true, saved = false) }
+        return rows + extra
+    }
+}

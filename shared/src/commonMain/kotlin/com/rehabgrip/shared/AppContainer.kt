@@ -78,7 +78,15 @@ class AppContainer(val platform: PlatformServices) {
 
     suspend fun loadScale() {
         lockedScaleId = settings.observeString(KEY_SCALE_ID).first()
+        // A scale chosen before «Mis básculas» existed is added to the list.
+        lockedScaleId?.let { id ->
+            val name = settings.observeString(KEY_SCALE_NAME).first()
+            saveBook(com.rehabgrip.core.ble.ScaleBook.upsert(loadBook(), id, name))
+        }
     }
+
+    /** A scale seen by the scan: saved to the list (not activated). */
+    suspend fun rememberScale(id: String, name: String?) = saveBook(com.rehabgrip.core.ble.ScaleBook.upsert(loadBook(), id, name))
 
     /** «Usar esta báscula»: from the diagnostics, or chosen automatically. */
     suspend fun useScale(id: String, name: String?) {

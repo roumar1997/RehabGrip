@@ -148,3 +148,18 @@ Fecha;Hora;Ejercicio;Agarre;Regleta (mm);Mano;Mano lesionada;Kilos;Origen;Person
 1970-01-03;00:00;Extensión;Extensión 3 dedos;20;Derecha;Sí;13,0;Entreno;Pepe;Polea A2 2/10;Entreno «Repeticiones»
 1970-01-06;01:00;Extensión;Extensión 3 dedos;20;Izquierda;No;31,5;Evaluación;;;Evaluación · Extensión 3 dedos
 ```
+
+## Ronda 7: regla del tirón (sustituye a «parada: fallo tras 1,5 s»)
+- El tiempo de trabajo de una repetición es **acumulativo** y solo corre con fuerza >= umbral. Por debajo, el contador se
+  PARA y espera: no hay fallo, ni descanso, ni cambio de mano o serie, y tampoco avanzan los descansos de la otra mano.
+- La repetición termina cuando el tiempo acumulado por encima del umbral llega al tiempo de trabajo, o con **Saltar**
+  (disponible en TIRA/ESPERA, con confirmación corta; cuenta como saltada y empieza el descanso).
+- El **fallo** solo existe con «Hasta el fallo» en Repetición o Tiempo (fuerza < umbral más de 1,5 s tras empezar). Con
+  «Desactivado» nunca hay fallo automático. Tests: `WorkoutEngineTest` (tirar 3 s y soltar 20 s no avanza; soltar y volver
+  suma hasta completar; Saltar avanza; fallo solo con Hasta el fallo; descansos congelados en pausa).
+- Debug: la báscula «Simulada contaminada» también suelta entre los segundos 3 y 7 de cada tirón y vuelve a tirar.
+
+## Mis básculas
+Al abrirse lanza un escaneo de ~8 s y lista en vivo las básculas detectadas (nombre, RSSI) junto a las guardadas; cada una
+detectada se guarda sola (nombre por defecto «Báscula IF_B7»). Una báscula elegida antes de existir la lista se añade al
+arrancar. Nombre editable, «Usar esta», «Olvidar» y marca de la activa.

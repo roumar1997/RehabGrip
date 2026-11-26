@@ -98,6 +98,9 @@ fun ProfileScreen(
     onDiagnostics: () -> Unit = {},
     onForgetScale: (String) -> Unit = {},
     onRenameScale: (String, String) -> Unit = { _, _ -> },
+    scannerFactory: (() -> com.rehabgrip.core.ble.AdvertisementScanner)? = null,
+    ensureBluetooth: suspend () -> Boolean = { true },
+    onScaleDetected: (String, String?) -> Unit = { _, _ -> },
     onUseScale: (com.rehabgrip.core.ble.SavedScale) -> Unit = {},
     onSimContaminated: (Boolean) -> Unit = {},
 ) {
@@ -181,7 +184,7 @@ fun ProfileScreen(
     }
     when (dialog) {
         DIALOG_INJURY -> InjuryDialog(state.injury, { dialog = null }) { onInjury(it); dialog = null }
-        DIALOG_SCALES -> ScalesDialog(state.scales, state.activeScaleId, { dialog = null }, onUseScale, onRenameScale, onForgetScale)
+        DIALOG_SCALES -> ScalesDialog(state.scales, state.activeScaleId, scannerFactory, ensureBluetooth, onScaleDetected, { dialog = null }, onUseScale, onRenameScale, onForgetScale)
         DIALOG_NAME -> RenameDialog(state.name, { dialog = null }) { onRename(it); dialog = null }
         DIALOG_TIPS -> InfoDialog("Información y consejos", TIPS) { dialog = null }
         DIALOG_ABOUT -> InfoDialog("Acerca de Rehagrip", ABOUT) { dialog = null }
