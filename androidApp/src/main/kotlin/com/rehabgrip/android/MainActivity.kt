@@ -72,8 +72,8 @@ class MainActivity : ComponentActivity() {
 
     private fun shareCsv(fileName: String, content: String) {
         val dir = File(cacheDir, "exports").apply { mkdirs() }
-        // BOM so Excel opens accents correctly.
-        val file = File(dir, fileName).apply { writeText("﻿" + content) }
+        // The CSV already starts with the BOM (Excel then reads the accents correctly).
+        val file = File(dir, fileName).apply { writeText(content) }
         val uri = FileProvider.getUriForFile(this, "$packageName.files", file)
         val send = Intent(Intent.ACTION_SEND).apply {
             type = "text/csv"

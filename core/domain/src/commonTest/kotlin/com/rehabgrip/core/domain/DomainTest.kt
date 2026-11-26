@@ -75,9 +75,9 @@ class CsvAndParserTest {
         val csv = CsvExporter(TimeZone.UTC).export(
             listOf(Measurement(1, Exercise.DYNAMOMETER, Hand.LEFT, 42.56, 0, MeasurementSource.MANUAL, "a;b")),
         )
-        val lines = csv.trim().lines()
-        assertEquals("fecha;hora;ejercicio;mano;kg;origen;nota", lines[0])
-        assertEquals("1970-01-01;00:00;DYNAMOMETER;LEFT;42,6;MANUAL;\"a;b\"", lines[1])
+        val lines = csv.removePrefix(CsvExporter.BOM).trim().lines()
+        assertEquals("Fecha;Hora;Ejercicio;Agarre;Regleta (mm);Mano;Mano lesionada;Kilos;Origen;Persona;Molestias;Nota", lines[0])
+        assertEquals("1970-01-01;00:00;Dinamómetro de mano;;;Izquierda;No;42,6;A mano;;;\"a;b\"", lines[1])
     }
 
     @Test

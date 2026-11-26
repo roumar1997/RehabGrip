@@ -104,8 +104,8 @@ class AppContainer(val platform: PlatformServices) {
 
     private suspend fun saveBook(list: List<com.rehabgrip.core.ble.SavedScale>) = settings.setString(KEY_SCALES, com.rehabgrip.core.ble.ScaleBook.encode(list))
 
-    fun export(list: List<Measurement>) =
-        platform.exportSharer.share("rehabgrip-${Clock.System.now().toEpochMilliseconds()}.csv", csv.export(list))
+    fun export(list: List<Measurement>, library: List<GripSpec>, injuredHand: Hand?) =
+        platform.exportSharer.share(csv.fileName(now()), csv.export(list, library, injuredHand))
 
     suspend fun loadSampleData() = measurements.replaceAll(SampleData.generate(now()))
 

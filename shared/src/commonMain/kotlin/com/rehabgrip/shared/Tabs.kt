@@ -52,7 +52,7 @@ internal fun TabContent(tab: Tab, container: AppContainer, navigator: Navigator,
         )
         Tab.HISTORY -> HistoryScreen(
             measurements = data.measurements,
-            onExport = container::export,
+            onExport = { list -> container.export(list, data.grips, session.injury.hand) },
             onDelete = { id -> scope.launch { container.measurements.delete(id) } },
             workouts = data.workoutResults,
             onDeleteWorkout = { at -> scope.launch { container.workoutResults.delete(at) } },
