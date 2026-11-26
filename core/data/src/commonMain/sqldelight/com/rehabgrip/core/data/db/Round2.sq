@@ -150,5 +150,8 @@ SELECT * FROM workout_result ORDER BY epoch_millis DESC;
 insertResult:
 INSERT INTO workout_result(name, epoch_millis, hand, max_kg, avg_kg, in_zone, reps) VALUES (?, ?, ?, ?, ?, ?, ?);
 
+moveResults:
+UPDATE workout_result SET epoch_millis = ? WHERE epoch_millis = ?;
+
 deleteResultsAt:
 DELETE FROM workout_result WHERE epoch_millis = ?;

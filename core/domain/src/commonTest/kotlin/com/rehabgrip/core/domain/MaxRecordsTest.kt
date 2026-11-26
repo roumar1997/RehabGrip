@@ -47,6 +47,7 @@ class MaxRecordsTest {
             override fun observeAll() = kotlinx.coroutines.flow.flowOf(emptyList<Measurement>())
             override suspend fun add(measurement: Measurement): Long { saved = measurement; return 1 }
             override suspend fun delete(id: Long) = Unit
+            override suspend fun update(measurement: Measurement) = Unit
             override suspend fun replaceAll(measurements: List<Measurement>) = Unit
         }
         kotlinx.coroutines.test.runTest {

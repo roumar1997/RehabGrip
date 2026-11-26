@@ -53,7 +53,7 @@ fun TrainingScreen(
     history: List<Measurement>,
     onBack: () -> Unit,
     onConnectScale: (Hand) -> Unit,
-    onManualSave: (hand: Hand, kg: Double, note: String, discomforts: List<Discomfort>) -> Unit,
+    onManualSave: (hand: Hand, kg: Double, note: String, discomforts: List<Discomfort>, at: Long?) -> Unit,
     injury: Injury = Injury.NONE,
     recentZones: List<String> = emptyList(),
 ) {
@@ -115,9 +115,9 @@ fun TrainingScreen(
             hand = hand,
             recentZones = recentZones,
             onDismiss = { showManual = false },
-            onSave = { kg, note, discomforts ->
+            onSave = { kg, note, discomforts, at ->
                 showManual = false
-                onManualSave(hand, kg, note, discomforts)
+                onManualSave(hand, kg, note, discomforts, at)
             },
         )
     }

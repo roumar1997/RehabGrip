@@ -26,6 +26,9 @@ INSERT INTO measurement(exercise, hand, kg, epoch_millis, source, note, grip_id,
 lastId:
 SELECT last_insert_rowid();
 
+updateById:
+UPDATE measurement SET exercise = ?, hand = ?, kg = ?, epoch_millis = ?, note = ?, grip_id = ?, person = ? WHERE id = ?;
+
 deleteById:
 DELETE FROM measurement WHERE id = ?;
 

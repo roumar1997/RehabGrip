@@ -132,8 +132,8 @@ class AppContainer(val platform: PlatformServices) {
      * Stores the session and, for library grips, the max of each hand as a
      * measurement so it shows in Evolution. Discomforts go with the first one.
      */
-    suspend fun saveWorkout(template: WorkoutTemplate, results: List<HandWorkoutResult>, discomforts: List<Discomfort>) {
-        val at = now()
+    suspend fun saveWorkout(template: WorkoutTemplate, results: List<HandWorkoutResult>, discomforts: List<Discomfort>, picked: Long? = null) {
+        val at = com.rehabgrip.core.domain.model.RecordDate.resolve(picked, now())
         workoutResults.add(WorkoutResultEntry(template.name, at, results))
         val grip = (template.sets.firstOrNull()?.grip as? Grip.Library)?.grip
         val exercise = grip?.builtIn ?: (template.sets.firstOrNull()?.grip as? Grip.Standard)?.exercise

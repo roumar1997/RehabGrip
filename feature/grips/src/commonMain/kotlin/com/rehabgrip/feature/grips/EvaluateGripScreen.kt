@@ -61,8 +61,9 @@ fun EvaluateGripScreen(
     onRestart: () -> Unit,
     onManual: (Hand, Double, Double?, Double?) -> Unit,
     onClear: (Hand) -> Unit,
-    onSave: () -> Unit,
+    onSave: (Long?) -> Unit,
 ) {
+    var at by remember { mutableStateOf<Long?>(null) }
     var manualHand by remember { mutableStateOf<Hand?>(null) }
     Column(Modifier.fillMaxSize()) {
         RgTopBar("Evaluar agarre", onBack = onBack)
@@ -87,11 +88,12 @@ fun EvaluateGripScreen(
                     HandCard(hand, injury, state, previous[hand], onMeasure, { manualHand = hand }, onClear)
                 }
                 state.message?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = RgColors.Danger) }
+                com.rehabgrip.core.designsystem.components.RgDateField(at, { at = it })
             }
         }
         if (state.measuring == null) {
             RgPrimaryButton(
-                "Guardar evaluación", onSave, Modifier.padding(16.dp).navigationBarsPadding(),
+                "Guardar evaluación", { onSave(at) }, Modifier.padding(16.dp).navigationBarsPadding(),
                 icon = Icons.Rounded.Check, enabled = state.results.isNotEmpty(),
             )
         }

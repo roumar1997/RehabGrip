@@ -50,9 +50,9 @@ internal fun WorkoutAndReminderRoutes(route: Route, container: AppContainer, nav
             recentZones = data.recentZones,
             defaultHand = session.injury.focusHand,
             onDiscard = { navigator.selectTab(Tab.WORKOUTS) },
-            onSave = { d ->
+            onSave = { d, at ->
                 scope.launch {
-                    container.saveWorkout(route.template, route.results, d)
+                    container.saveWorkout(route.template, route.results, d, at)
                     navigator.selectTab(Tab.HISTORY)
                 }
             },

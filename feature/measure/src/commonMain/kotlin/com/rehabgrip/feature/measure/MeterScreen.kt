@@ -44,7 +44,7 @@ import com.rehabgrip.core.domain.model.Hand
 import com.rehabgrip.core.domain.workout.GripSpec
 
 /** What «Guardar» stores: [grip] null = hand dynamometer. */
-data class MeterSave(val grip: GripSpec?, val hand: Hand, val person: String, val kg: Double)
+data class MeterSave(val grip: GripSpec?, val hand: Hand, val person: String, val kg: Double, val at: Long? = null)
 
 /**
  * «Medir»: free measuring without a workout. Most of the screen is the live graph; the maximum
@@ -137,6 +137,7 @@ private fun SaveDialog(who: String, kg: Double, grips: List<GripSpec>, onDismiss
     var grip by remember { mutableStateOf<GripSpec?>(grips.firstOrNull()) }
     var hand by remember { mutableStateOf(Hand.RIGHT) }
     var name by remember { mutableStateOf(who) }
+    var at by remember { mutableStateOf<Long?>(null) }
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = RgColors.Background,
@@ -150,13 +151,14 @@ private fun SaveDialog(who: String, kg: Double, grips: List<GripSpec>, onDismiss
                 }
                 Text("Mano", style = MaterialTheme.typography.titleSmall)
                 RgSegmented(Hand.entries, hand, { Labels.hand(it) }, { hand = it })
+                com.rehabgrip.core.designsystem.components.RgDateField(at, { at = it })
                 OutlinedTextField(
                     name, { name = it.take(30) }, label = { Text("Nombre (vacío = yo)") }, singleLine = true,
                     shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth(),
                 )
             }
         },
-        confirmButton = { TextButton(onClick = { onSave(MeterSave(grip, hand, name.trim(), kg)) }) { Text("Guardar") } },
+        confirmButton = { TextButton(onClick = { onSave(MeterSave(grip, hand, name.trim(), kg, at)) }) { Text("Guardar") } },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } },
     )
 }

@@ -169,4 +169,7 @@ class SqlWorkoutResultRepository(private val db: RehabGripDatabase) : WorkoutRes
     }
 
     override suspend fun delete(epochMillis: Long) = withContext(Dispatchers.IO) { q.deleteResultsAt(epochMillis) }
+
+    override suspend fun changeDate(oldEpochMillis: Long, newEpochMillis: Long) =
+        withContext(Dispatchers.IO) { q.moveResults(newEpochMillis, oldEpochMillis) }
 }

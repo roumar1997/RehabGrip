@@ -49,7 +49,7 @@ fun SaveSessionScreen(
     attempts: List<Attempt>,
     sessionPeakKg: Double,
     onBack: () -> Unit,
-    onSave: (kg: Double, note: String, discomforts: List<Discomfort>) -> Unit,
+    onSave: (kg: Double, note: String, discomforts: List<Discomfort>, at: Long?) -> Unit,
     recentZones: List<String> = emptyList(),
 ) {
     var discomforts by remember { mutableStateOf(emptyList<Discomfort>()) }
@@ -57,6 +57,7 @@ fun SaveSessionScreen(
     val best = options.maxBy { it.peakKg }
     var selected by rememberSaveable { mutableStateOf(best.index) }
     var note by rememberSaveable { mutableStateOf("") }
+    var at by remember { mutableStateOf<Long?>(null) }
     Column(Modifier.fillMaxSize()) {
         RgTopBar("Guardar intento", onBack = onBack)
         Text(
@@ -95,11 +96,12 @@ fun SaveSessionScreen(
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
+            item { com.rehabgrip.core.designsystem.components.RgDateField(at, { at = it }) }
             item { DiscomfortEditor(discomforts, { discomforts = it }, recentZones, hand) }
         }
         RgPrimaryButton(
             "Guardar ${formatKg(options.first { it.index == selected }.peakKg)} kg",
-            { onSave(options.first { it.index == selected }.peakKg, note, discomforts) },
+            { onSave(options.first { it.index == selected }.peakKg, note, discomforts, at) },
             Modifier.padding(16.dp).navigationBarsPadding(),
             icon = Icons.Rounded.Save,
         )

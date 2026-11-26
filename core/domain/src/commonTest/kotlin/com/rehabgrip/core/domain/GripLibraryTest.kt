@@ -147,6 +147,7 @@ class GripEvaluationFlowTest {
         override fun observeAll(): Flow<List<Measurement>> = flowOf(saved)
         override suspend fun add(measurement: Measurement): Long { saved += measurement; return saved.size.toLong() }
         override suspend fun delete(id: Long) = Unit
+        override suspend fun update(measurement: Measurement) = Unit
         override suspend fun replaceAll(measurements: List<Measurement>) = Unit
     }
 

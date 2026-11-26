@@ -24,9 +24,9 @@ import kotlinx.coroutines.launch
 internal fun MeasureRoutes(route: Route, container: AppContainer, navigator: Navigator, session: AppSession, data: AppData) {
     val scope = rememberCoroutineScope()
 
-    fun save(exercise: Exercise, hand: Hand, kg: Double, note: String, discomforts: List<Discomfort>, source: MeasurementSource) =
+    fun save(exercise: Exercise, hand: Hand, kg: Double, note: String, discomforts: List<Discomfort>, source: MeasurementSource, picked: Long? = null) =
         scope.launch {
-            val at = container.now()
+            val at = com.rehabgrip.core.domain.model.RecordDate.resolve(picked, container.now())
             container.saveMeasurement(exercise, hand, kg, source, at, note, discomforts)
                 .onSuccess { navigator.resetTo(Route.Saved(exercise, hand, kg, note, at, discomforts)) }
         }
@@ -43,7 +43,7 @@ internal fun MeasureRoutes(route: Route, container: AppContainer, navigator: Nav
                     }
                 }
             },
-            onManualSave = { hand, kg, note, discomforts -> save(route.exercise, hand, kg, note, discomforts, MeasurementSource.MANUAL) },
+            onManualSave = { hand, kg, note, discomforts, at -> save(route.exercise, hand, kg, note, discomforts, MeasurementSource.MANUAL, at) },
             injury = session.injury,
             recentZones = data.recentZones,
         )
@@ -56,7 +56,7 @@ internal fun MeasureRoutes(route: Route, container: AppContainer, navigator: Nav
             attempts = route.attempts,
             sessionPeakKg = route.peakKg,
             onBack = { navigator.pop() },
-            onSave = { kg, note, discomforts -> save(route.exercise, route.hand, kg, note, discomforts, MeasurementSource.SCALE) },
+            onSave = { kg, note, discomforts, at -> save(route.exercise, route.hand, kg, note, discomforts, MeasurementSource.SCALE, at) },
             recentZones = data.recentZones,
         )
         is Route.Saved -> SavedScreen(
@@ -115,7 +115,7 @@ private fun MeterRoute(container: AppContainer, navigator: Navigator, data: AppD
             scope.launch {
                 container.saveMeasurement(
                     s.grip?.builtIn ?: if (s.grip == null) Exercise.DYNAMOMETER else Exercise.CUSTOM,
-                    s.hand, s.kg, MeasurementSource.SCALE, container.now(),
+                    s.hand, s.kg, MeasurementSource.SCALE, com.rehabgrip.core.domain.model.RecordDate.resolve(s.at, container.now()),
                     note = "Medidor", gripId = s.grip?.id, person = s.person,
                 )
                 presenter.resetMax()

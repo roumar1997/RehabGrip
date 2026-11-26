@@ -34,8 +34,9 @@ fun ManualEntryDialog(
     hand: Hand,
     recentZones: List<String>,
     onDismiss: () -> Unit,
-    onSave: (kg: Double, note: String, discomforts: List<Discomfort>) -> Unit,
+    onSave: (kg: Double, note: String, discomforts: List<Discomfort>, at: Long?) -> Unit,
 ) {
+    var at by remember { mutableStateOf<Long?>(null) }
     var text by rememberSaveable { mutableStateOf("") }
     var note by rememberSaveable { mutableStateOf("") }
     var discomforts by remember { mutableStateOf(emptyList<Discomfort>()) }
@@ -66,11 +67,12 @@ fun ManualEntryDialog(
                     shape = RoundedCornerShape(16.dp),
                     modifier = Modifier.fillMaxWidth(),
                 )
+                com.rehabgrip.core.designsystem.components.RgDateField(at, { at = it })
                 DiscomfortEditor(discomforts, { discomforts = it }, recentZones, hand)
             }
         },
         confirmButton = {
-            TextButton(onClick = { kg?.let { onSave(it, note, discomforts) } }, enabled = kg != null) { Text("Guardar") }
+            TextButton(onClick = { kg?.let { onSave(it, note, discomforts, at) } }, enabled = kg != null) { Text("Guardar") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } },
     )

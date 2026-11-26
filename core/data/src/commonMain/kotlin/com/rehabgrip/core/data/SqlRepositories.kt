@@ -63,6 +63,13 @@ class SqlMeasurementRepository(private val db: RehabGripDatabase) : MeasurementR
         }
     }
 
+    override suspend fun update(measurement: Measurement) = withContext(Dispatchers.IO) {
+        q.updateById(
+            measurement.exercise.name, measurement.hand.name, measurement.kg, measurement.epochMillis,
+            measurement.note, measurement.gripId, measurement.person, measurement.id,
+        )
+    }
+
     override suspend fun replaceAll(measurements: List<Measurement>) = withContext(Dispatchers.IO) {
         q.transaction {
             d.deleteAllDiscomforts()

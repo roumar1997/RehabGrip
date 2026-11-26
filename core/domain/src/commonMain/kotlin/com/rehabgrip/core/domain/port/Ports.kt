@@ -15,6 +15,8 @@ interface MeasurementRepository {
     fun observeAll(): Flow<List<Measurement>>
     suspend fun add(measurement: Measurement): Long
     suspend fun delete(id: Long)
+    /** Rewrites hand, kg, grip and above all the date of a stored measurement. */
+    suspend fun update(measurement: Measurement)
     suspend fun replaceAll(measurements: List<Measurement>)
 }
 
@@ -43,6 +45,9 @@ interface WorkoutResultRepository {
     fun observeAll(): Flow<List<WorkoutResultEntry>>
     suspend fun add(entry: WorkoutResultEntry)
     suspend fun delete(epochMillis: Long)
+
+    /** Moves a saved session to another date. */
+    suspend fun changeDate(oldEpochMillis: Long, newEpochMillis: Long)
 }
 
 /** Output port: the user's grip library (predefined + own). */

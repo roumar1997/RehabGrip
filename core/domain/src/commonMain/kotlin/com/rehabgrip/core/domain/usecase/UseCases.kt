@@ -49,3 +49,16 @@ object ManualKgParser {
     fun parse(text: String): Double? =
         text.trim().replace(',', '.').toDoubleOrNull()?.takeIf { it > 0.0 && it <= SaveMeasurement.MAX_KG }
 }
+
+/** Edits a stored measurement (date, hand, value, grip); the date can never be in the future. */
+class UpdateMeasurement(private val repository: MeasurementRepository) {
+    suspend operator fun invoke(measurement: Measurement, nowMillis: Long): Result<Unit> {
+        if (measurement.id == 0L) return Result.failure(IllegalArgumentException("not stored yet"))
+        if (measurement.kg <= 0.0 || measurement.kg > SaveMeasurement.MAX_KG) return Result.failure(IllegalArgumentException("kg out of range"))
+        if (com.rehabgrip.core.domain.model.RecordDate.isFuture(measurement.epochMillis, nowMillis)) {
+            return Result.failure(IllegalArgumentException("La fecha no puede ser futura"))
+        }
+        repository.update(measurement)
+        return Result.success(Unit)
+    }
+}

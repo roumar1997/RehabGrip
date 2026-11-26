@@ -59,9 +59,9 @@ internal fun GripEvaluateRoute(grip: GripSpec, container: AppContainer, session:
         onRestart = presenter::restartMeasure,
         onManual = presenter::setManual,
         onClear = presenter::clear,
-        onSave = {
+        onSave = { picked ->
             scope.launch {
-                val at = container.now()
+                val at = com.rehabgrip.core.domain.model.RecordDate.resolve(picked, container.now())
                 state.results.forEach { (hand, r) ->
                     container.saveGripEvaluation(
                         grip, hand, r.maxKg, r.minKg, r.avgKg,

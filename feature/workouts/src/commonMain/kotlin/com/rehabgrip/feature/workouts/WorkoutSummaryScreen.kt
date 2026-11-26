@@ -46,8 +46,9 @@ fun WorkoutSummaryScreen(
     recentZones: List<String>,
     defaultHand: Hand,
     onDiscard: () -> Unit,
-    onSave: (List<Discomfort>) -> Unit,
+    onSave: (List<Discomfort>, Long?) -> Unit,
 ) {
+    var at by remember { mutableStateOf<Long?>(null) }
     var discomforts by remember { mutableStateOf(emptyList<Discomfort>()) }
     Column(Modifier.fillMaxSize()) {
         RgTopBar("Resumen · $name", onBack = onDiscard)
@@ -74,9 +75,10 @@ fun WorkoutSummaryScreen(
                     }
                 }
             }
+            com.rehabgrip.core.designsystem.components.RgDateField(at, { at = it })
             DiscomfortEditor(discomforts, { discomforts = it }, recentZones, defaultHand)
         }
-        RgPrimaryButton("Guardar en el historial", { onSave(discomforts) }, Modifier.padding(16.dp).navigationBarsPadding(), enabled = results.isNotEmpty())
+        RgPrimaryButton("Guardar en el historial", { onSave(discomforts, at) }, Modifier.padding(16.dp).navigationBarsPadding(), enabled = results.isNotEmpty())
     }
 }
 
