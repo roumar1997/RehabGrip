@@ -1,0 +1,3 @@
+-- v5 -> v6: colour (palette slot) and letters of each grip for the Evolution charts.
+ALTER TABLE custom_grip ADD COLUMN color_index INTEGER;
+ALTER TABLE custom_grip ADD COLUMN initials TEXT NOT NULL DEFAULT '';

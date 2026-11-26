@@ -38,14 +38,14 @@ import com.rehabgrip.core.domain.progress.ProgressSummary
 
 /** One exercise: best of each hand, symmetry now, its trend and % over time. */
 @Composable
-internal fun ComparisonCard(summary: ProgressSummary, injury: Injury, dotColor: Color? = null, showSeries: Boolean = true) {
+internal fun ComparisonCard(summary: ProgressSummary, injury: Injury, look: GripLook? = null, showSeries: Boolean = true) {
     val focus = injury.focusHand
     val hurt = summary.of(focus)
     val healthy = summary.of(focus.other)
     val now = summary.symmetryPercent(focus)
     RgCard(Modifier.fillMaxWidth()) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            dotColor?.let { c -> Box(Modifier.size(12.dp).clip(CircleShape).background(c)); Spacer(Modifier.width(8.dp)) }
+            look?.let { GripBadges(it); Spacer(Modifier.width(8.dp)) }
             Text(summary.title ?: Labels.exercise(summary.exercise), style = MaterialTheme.typography.titleLarge, color = RgColors.Navy, modifier = Modifier.weight(1f))
         }
         Text(InjuryLabels.comparisonTitle(injury), style = MaterialTheme.typography.bodySmall, color = RgColors.TextSecondary)

@@ -163,3 +163,12 @@ Fecha;Hora;Ejercicio;Agarre;Regleta (mm);Mano;Mano lesionada;Kilos;Origen;Person
 Al abrirse lanza un escaneo de ~8 s y lista en vivo las básculas detectadas (nombre, RSSI) junto a las guardadas; cada una
 detectada se guarda sola (nombre por defecto «Báscula IF_B7»). Una báscula elegida antes de existir la lista se añade al
 arrancar. Nombre editable, «Usar esta», «Olvidar» y marca de la activa.
+
+## Ronda 9: Evolución «Por mano»
+Cada agarre tiene color (paleta de 8, guardado en `custom_grip.color_index`) y siglas
+(`initials`, máx. 3; SA, E, SE, BE, BA, BP, PA, DM por defecto; propios = iniciales del
+nombre), editables en el formulario de agarre. Lógica en `core/domain/grip/GripStyle.kt` y
+`progress/ChartRules.kt` (eje desde el primer registro hasta hoy, dodge, modo
+Superpuestas/Separadas, máx. 8 superpuestas). Gráfica: `designsystem/chart/GripChart.kt`.
+Derecha = círculo lleno y línea continua; izquierda = círculo claro, borde y línea discontinua al 55 %.
+Capturas en `docs/capturas/ronda9/`.

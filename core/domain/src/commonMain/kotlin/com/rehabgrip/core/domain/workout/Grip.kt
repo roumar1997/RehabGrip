@@ -22,6 +22,10 @@ data class GripSpec(
     val builtIn: Exercise? = null,
     /** Key of the newer predefined grips (they have no legacy exercise). Not deletable either. */
     val presetKey: String? = null,
+    /** Palette slot chosen by the user (0..7); null = the predefined one or the first free. */
+    val colorIndex: Int? = null,
+    /** Letters shown in the charts (max 3); empty = the predefined ones or the initials of the name. */
+    val initials: String = "",
 ) {
     /** Predefined grips can be edited but never deleted. */
     val isPredefined: Boolean get() = builtIn != null || presetKey != null

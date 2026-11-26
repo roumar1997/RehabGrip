@@ -22,7 +22,9 @@ CREATE TABLE custom_grip (
     type TEXT NOT NULL,
     name TEXT NOT NULL DEFAULT '',
     finger_count INTEGER NOT NULL DEFAULT 4,
-    built_in TEXT
+    built_in TEXT,
+    color_index INTEGER,
+    initials TEXT NOT NULL DEFAULT ''
 );
 
 CREATE TABLE grip_evaluation (
@@ -106,10 +108,10 @@ selectGrips:
 SELECT * FROM custom_grip ORDER BY id;
 
 insertGrip:
-INSERT INTO custom_grip(name, edge_mm, finger_count, fingers, type, built_in) VALUES (?, ?, ?, ?, ?, ?);
+INSERT INTO custom_grip(name, edge_mm, finger_count, fingers, type, built_in, color_index, initials) VALUES (?, ?, ?, ?, ?, ?, ?, ?);
 
 updateGrip:
-UPDATE custom_grip SET name = ?, edge_mm = ?, finger_count = ?, fingers = ?, type = ? WHERE id = ?;
+UPDATE custom_grip SET name = ?, edge_mm = ?, finger_count = ?, fingers = ?, type = ?, color_index = ?, initials = ? WHERE id = ?;
 
 replaceGripInSets:
 UPDATE workout_set SET grip_custom_id = ?, grip_exercise = NULL WHERE grip_custom_id = ?;

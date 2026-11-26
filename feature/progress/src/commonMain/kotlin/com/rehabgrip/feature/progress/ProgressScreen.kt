@@ -58,6 +58,9 @@ import com.rehabgrip.core.domain.progress.ProgressRange
 import com.rehabgrip.core.domain.progress.ProgressSummary
 import com.rehabgrip.core.domain.progress.DayPoint
 import com.rehabgrip.core.domain.model.Injury
+import com.rehabgrip.core.domain.grip.GripStyles
+import com.rehabgrip.core.domain.progress.ChartMode
+import com.rehabgrip.core.domain.progress.ChartModeRules
 import com.rehabgrip.core.designsystem.components.InjuryLabels
 import com.rehabgrip.core.designsystem.components.SymmetryOverview
 import kotlinx.datetime.LocalDate
@@ -76,7 +79,10 @@ fun ProgressScreen(
     var view by rememberSaveable { mutableStateOf(ProgressView.HANDS) }
     val calculator = remember { ProgressCalculator() }
     val options = remember(grips) { grips.map { it.id to it.label } + (DYNAMOMETER_ID to dynamometerName()) }
-    val colorIndex = { id: Long -> options.indexOfFirst { it.first == id }.coerceAtLeast(0) }
+    val styles = remember(grips) { GripStyles.resolve(grips) }
+    val lookOf = { id: Long -> GripLook.of(styles[id] ?: GripStyles.dynamometer()) }
+    var modeText by rememberSaveable { mutableStateOf("") }
+    var notice by remember { mutableStateOf<String?>(null) }
     val selected: Set<Long> = remember(selectedText, measurements, grips) {
         val chosen = selectedText.split(',').mapNotNull { it.toLongOrNull() }.filter { id -> options.any { it.first == id } }.toSet()
         if (selectedText.isNotEmpty()) chosen
@@ -89,9 +95,10 @@ fun ProgressScreen(
         options.filter { it.first in selected }.map { (id, name) ->
             val summary = if (id == DYNAMOMETER_ID) calculator.summarize(measurements, Exercise.DYNAMOMETER, range, nowMillis)
             else calculator.summarizeGrip(measurements, grips.first { it.id == id }, range, nowMillis, grips)
-            Picked(id, name, paletteColor(colorIndex(id)), summary)
+            Picked(id, name, lookOf(id), summary)
         }
     }
+    val mode = when (modeText) { "O" -> ChartMode.OVERLAID; "S" -> ChartMode.SEPARATE; else -> ChartModeRules.default(selected.size) }
     Column(Modifier.fillMaxSize()) {
         RgTopBar("Evolución", leadingIcon = Icons.Rounded.BarChart)
         Column(
@@ -105,17 +112,25 @@ fun ProgressScreen(
                 onSelect = { range = it },
             )
             if (view != ProgressView.DISCOMFORT) {
-                GripMultiPicker(options, selected, { paletteColor(colorIndex(it)) }) { id ->
-                    val next = if (id in selected) selected - id else selected + id
-                    selectedText = next.joinToString(",").ifEmpty { "x" }
+                GripMultiPicker(options, selected, lookOf, notice) { id ->
+                    if (id !in selected && !ChartModeRules.canAdd(mode, selected.size)) {
+                        notice = ChartModeRules.OVERLAID_FULL
+                    } else {
+                        notice = null
+                        val next = if (id in selected) selected - id else selected + id
+                        selectedText = next.joinToString(",").ifEmpty { "x" }
+                    }
                 }
             }
             when (view) {
-                ProgressView.HANDS -> ByHandView(picked, injury)
+                ProgressView.HANDS -> ByHandView(picked, injury, mode, { m ->
+                    if (ChartModeRules.canSwitchTo(m, selected.size)) { notice = null; modeText = if (m == ChartMode.OVERLAID) "O" else "S" }
+                    else notice = ChartModeRules.OVERLAID_FULL
+                }, nowMillis)
                 ProgressView.COMPARE -> {
                     CompareView(picked, injury)
-                    TwoHandsMini(picked)
-                    picked.forEach { ComparisonCard(it.summary, injury) }
+                    TwoHandsMini(picked, nowMillis)
+                    picked.forEach { ComparisonCard(it.summary, injury, look = it.look) }
                 }
                 ProgressView.DISCOMFORT -> DiscomfortView(measurements, range, nowMillis)
             }

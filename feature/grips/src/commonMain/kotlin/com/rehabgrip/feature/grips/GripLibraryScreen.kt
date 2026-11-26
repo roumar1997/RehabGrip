@@ -103,6 +103,7 @@ fun GripLibraryScreen(
     editing?.let { grip ->
         GripEditorDialog(
             initial = grip,
+            library = rows.map { it.grip },
             onDismiss = { editing = null },
             onSave = { onSave(it); editing = null },
             onDelete = if (grip.id != 0L && grip.builtIn == null) ({ deleting = grip; editing = null }) else null,

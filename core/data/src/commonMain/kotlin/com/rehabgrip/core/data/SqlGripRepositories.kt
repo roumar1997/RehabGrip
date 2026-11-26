@@ -4,6 +4,7 @@ import app.cash.sqldelight.coroutines.asFlow
 import app.cash.sqldelight.coroutines.mapToList
 import com.rehabgrip.core.data.db.RehabGripDatabase
 import com.rehabgrip.core.domain.grip.GripEvaluation
+import com.rehabgrip.core.domain.grip.GripStyles
 import com.rehabgrip.core.domain.model.Exercise
 import com.rehabgrip.core.domain.model.Hand
 import com.rehabgrip.core.domain.port.GripEvaluationRepository
@@ -32,6 +33,8 @@ class SqlGripRepository(private val db: RehabGripDatabase) : GripRepository {
                 type = enumOrNull<GripType>(it.type) ?: GripType.OTHER,
                 builtIn = enumOrNull<Exercise>(it.built_in),
                 presetKey = it.built_in?.takeIf { k -> k.startsWith(GripSpec.PRESET_PREFIX) }?.removePrefix(GripSpec.PRESET_PREFIX),
+                colorIndex = it.color_index?.toInt(),
+                initials = it.initials,
             )
         }
     }
@@ -39,13 +42,16 @@ class SqlGripRepository(private val db: RehabGripDatabase) : GripRepository {
     override suspend fun upsert(grip: GripSpec): Long = withContext(Dispatchers.IO) {
         val name = grip.name.trim()
         val note = grip.fingerNote.trim()
+        val initials = GripStyles.sanitize(grip.initials)
+        // A new own grip gets the first free colour at once, so it never changes later.
+        val color = grip.colorIndex ?: if (grip.id == 0L && !grip.isPredefined) GripStyles.nextFreeColor(observeAll().first()) else null
         if (grip.id == 0L) {
             q.transactionWithResult {
-                q.insertGrip(name, grip.edgeMm.toLong(), grip.fingerCount.toLong(), note, grip.type.name, grip.builtIn?.name ?: grip.presetKey?.let { k -> GripSpec.PRESET_PREFIX + k })
+                q.insertGrip(name, grip.edgeMm.toLong(), grip.fingerCount.toLong(), note, grip.type.name, grip.builtIn?.name ?: grip.presetKey?.let { k -> GripSpec.PRESET_PREFIX + k }, color?.toLong(), initials)
                 db.rehabGripQueries.lastId().executeAsOne()
             }
         } else {
-            q.updateGrip(name, grip.edgeMm.toLong(), grip.fingerCount.toLong(), note, grip.type.name, grip.id)
+            q.updateGrip(name, grip.edgeMm.toLong(), grip.fingerCount.toLong(), note, grip.type.name, grip.colorIndex?.toLong(), initials, grip.id)
             grip.id
         }
     }

@@ -1,6 +1,9 @@
 package com.rehabgrip.core.designsystem.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -27,6 +30,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.rehabgrip.core.designsystem.theme.RgColors
+import com.rehabgrip.core.domain.grip.GripPalette
+import com.rehabgrip.core.domain.grip.GripStyles
 import com.rehabgrip.core.domain.workout.GripSpec
 import com.rehabgrip.core.domain.workout.GripType
 
@@ -41,15 +46,20 @@ fun GripEditorDialog(
     onDismiss: () -> Unit,
     onSave: (GripSpec) -> Unit,
     onDelete: (() -> Unit)? = null,
+    /** The whole library: lets a new grip start with the first free colour. */
+    library: List<GripSpec> = emptyList(),
 ) {
     var name by remember { mutableStateOf(initial.name) }
     var mm by remember { mutableStateOf(initial.edgeMm.toString()) }
     var count by remember { mutableStateOf(initial.fingerCount) }
     var which by remember { mutableStateOf(initial.fingerNote) }
     var type by remember { mutableStateOf(initial.type) }
+    var color by remember { mutableStateOf(GripStyles.suggestedColor(initial, library)) }
+    var letters by remember { mutableStateOf(initial.initials) }
     val draft = initial.copy(
         name = name.trim(), edgeMm = mm.toIntOrNull() ?: 0, fingerCount = count,
         fingerNote = if (GripSpec.fingerChoices(count).contains(which)) which else "", type = type,
+        colorIndex = color, initials = GripStyles.sanitize(letters),
     )
     val problems = draft.validate()
     AlertDialog(
@@ -83,6 +93,20 @@ fun GripEditorDialog(
                 Text("Tipo de agarre", style = MaterialTheme.typography.titleSmall, color = RgColors.Navy)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     GripType.entries.forEach { t -> GripChip(Labels.gripType(t), type == t) { type = t } }
+                }
+                Text("Siglas y color en Evolución", style = MaterialTheme.typography.titleSmall, color = RgColors.Navy)
+                OutlinedTextField(
+                    letters, { letters = GripStyles.sanitize(it) }, label = { Text("Siglas (máx. 3)") }, singleLine = true,
+                    placeholder = { Text(GripStyles.codeOf(draft.copy(initials = ""))) }, modifier = Modifier.fillMaxWidth(),
+                )
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    GripPalette.colors.forEachIndexed { i, c ->
+                        Box(
+                            Modifier.size(34.dp).clip(CircleShape).background(Color(c.base))
+                                .border(if (i == color) 3.dp else 0.dp, RgColors.Navy, CircleShape)
+                                .clickableNoRipple { color = i },
+                        )
+                    }
                 }
                 Text(
                     problems.firstOrNull() ?: draft.label + if (draft.name.isNotBlank()) "  ·  ${draft.summary}" else "",

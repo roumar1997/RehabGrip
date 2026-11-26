@@ -125,7 +125,7 @@ internal fun SetConfigScreen(
         RgPrimaryButton("Hecho", onBack, Modifier.padding(16.dp).navigationBarsPadding())
     }
     if (creatingGrip) {
-        GripEditorDialog(GripSpec(), onDismiss = { creatingGrip = false }, onSave = {
+        GripEditorDialog(GripSpec(), onDismiss = { creatingGrip = false }, library = library, onSave = {
             onSaveGrip(it)
             creatingGrip = false
         })
