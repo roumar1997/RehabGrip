@@ -181,3 +181,10 @@ coge el primer color libre; al arrancar (`ensureDefaults`) se reparan duplicados
 (`GripStyles.repairs`). El editor tacha los usados con el nombre de su dueño, tiene «Elegir color»
 (matiz y luminosidad) y no deja guardar un color demasiado parecido. Superpuestas sigue limitado a 8
 por legibilidad. Columna nueva `color_argb` (migración 6.sqm). Capturas en `docs/capturas/ronda9b/`.
+
+## Ronda 10: Evolución con kilos en píldora
+Etiqueta de kilos por punto: derecha = píldora llena debajo, izquierda = píldora hueca encima; la mano con más valor
+ese día va arriba (si se cruzan, se invierte). Puntos casi iguales se separan 5 dp y, si chocan, se funden «32 · 32».
+Prioridad si no caben: primero, último, máximo, resto. Si los días no caben con etiquetas legibles la gráfica se
+desliza (eje Y fijo, empieza por los últimos días, tope 8 anchos de pantalla). Rejilla cada 5 kg, número cada 10.
+Superpuestas y mini de Comparar: kilos solo en primer y último punto. Lógica en `core/domain/.../ChartLabels.kt`.

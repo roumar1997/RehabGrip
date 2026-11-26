@@ -28,7 +28,7 @@ class DayAxis(val first: LocalDate, val last: LocalDate) {
     fun fraction(d: LocalDate): Float = if (spanDays <= 0) 0f else (d.toEpochDays() - first.toEpochDays()).toFloat() / spanDays
 
     /** Unique tick dates with their x fraction. */
-    fun ticks(): List<Pair<Float, LocalDate>> = AxisTicks.days(first, spanDays).map { fraction(it) to it }
+    fun ticks(max: Int = 4): List<Pair<Float, LocalDate>> = AxisTicks.days(first, spanDays, max.coerceAtLeast(2)).map { fraction(it) to it }
 
     companion object {
         fun build(dates: List<LocalDate>, nowMillis: Long, tz: TimeZone = TimeZone.currentSystemDefault()): DayAxis? {

@@ -2,7 +2,11 @@ package com.rehabgrip.feature.progress
 
 import com.rehabgrip.core.designsystem.components.GripBadges
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Column
@@ -23,6 +27,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.rehabgrip.core.designsystem.chart.AxisTickUi
+import com.rehabgrip.core.designsystem.chart.ChartLabelMode
 import com.rehabgrip.core.designsystem.chart.GripChart
 import com.rehabgrip.core.designsystem.chart.GripLineUi
 import com.rehabgrip.core.designsystem.chart.GripPointUi
@@ -56,7 +61,7 @@ internal fun handLines(p: Picked, axis: DayAxis, index: Int, count: Int): List<G
 internal fun axisOf(picked: List<Picked>, nowMillis: Long): DayAxis? =
     DayAxis.build(picked.flatMap { p -> p.summary.right.points + p.summary.left.points }.map { it.date }, nowMillis)
 
-private fun ticksOf(axis: DayAxis) = axis.ticks().map { (fx, d) -> AxisTickUi(fx, d.short()) }
+private fun ticksOf(axis: DayAxis): (Int) -> List<AxisTickUi> = { max -> axis.ticks(max).map { (fx, d) -> AxisTickUi(fx, d.short()) } }
 
 /** «Semiarqueo · Izquierda · 38,0 kg · 25/11» */
 @Composable
@@ -88,7 +93,7 @@ internal fun ByHandView(picked: List<Picked>, injury: Injury, mode: ChartMode, o
         } else if (mode == ChartMode.OVERLAID) {
             GripChart(
                 shown.flatMapIndexed { i, p -> handLines(p, axis, i, shown.size) }, ticksOf(axis),
-                Modifier.fillMaxWidth().height(260.dp), onPointTap = { l, p -> tapped = l to p },
+                Modifier.fillMaxWidth().height(300.dp), labelMode = ChartLabelMode.ENDS, lettered = true, onPointTap = { l, p -> tapped = l to p },
             )
             Legend(shown)
         }
@@ -103,12 +108,12 @@ internal fun ByHandView(picked: List<Picked>, injury: Injury, mode: ChartMode, o
     if (mode == ChartMode.SEPARATE && axis != null) shown.forEach { p ->
         RgCard(Modifier.fillMaxWidth()) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                GripBadges(p.look)
-                Text(p.name, style = MaterialTheme.typography.titleSmall, color = RgColors.Navy, modifier = Modifier.padding(start = 8.dp), maxLines = 2)
+                Text("${p.look.code} · ${p.name}", style = MaterialTheme.typography.titleSmall, color = RgColors.Navy, modifier = Modifier.weight(1f), maxLines = 2)
+                Box(Modifier.padding(start = 8.dp).size(12.dp).clip(CircleShape).background(p.look.color))
             }
             val lines = handLines(p, axis, 0, 1)
             if (lines.isEmpty()) Text("Sin registros en este periodo", color = RgColors.TextSecondary, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(vertical = 8.dp))
-            else GripChart(lines, ticksOf(axis), Modifier.fillMaxWidth().height(210.dp), onPointTap = { l, pt -> tapped = l to pt })
+            else GripChart(lines, ticksOf(axis), Modifier.fillMaxWidth().height(240.dp), onPointTap = { l, pt -> tapped = l to pt })
         }
     }
     shown.forEach { ComparisonCard(it.summary, injury, look = it.look, showSeries = false) }
@@ -150,7 +155,7 @@ internal fun TwoHandsMini(picked: List<Picked>, nowMillis: Long) {
         if (axis == null) {
             Text("Sin registros en este periodo", color = RgColors.TextSecondary, style = MaterialTheme.typography.bodyMedium)
         } else {
-            GripChart(handLines(p, axis, 0, 1), ticksOf(axis), Modifier.fillMaxWidth().height(200.dp), onPointTap = { l, pt -> tapped = l to pt })
+            GripChart(handLines(p, axis, 0, 1), ticksOf(axis), Modifier.fillMaxWidth().height(230.dp), labelMode = ChartLabelMode.ENDS, onPointTap = { l, pt -> tapped = l to pt })
             Text("Círculo lleno = derecha · círculo claro y discontinua = izquierda", style = MaterialTheme.typography.labelSmall, color = RgColors.TextSecondary)
             if (hasSingleDay(listOf(p.summary.right.points, p.summary.left.points))) OneDayText()
         }

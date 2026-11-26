@@ -2,11 +2,22 @@ package com.rehabgrip.core.designsystem.chart
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
@@ -20,121 +31,85 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.rehabgrip.core.designsystem.components.formatKg
 import com.rehabgrip.core.designsystem.theme.RgColors
-import com.rehabgrip.core.domain.progress.Dodge
-import kotlin.math.ceil
+import com.rehabgrip.core.domain.progress.PlacedLabel
+import com.rehabgrip.core.domain.progress.YScale
 import kotlin.math.max
 
-/** One day of a hand's line. [fx] is 0..1 along the axis. */
-data class GripPointUi(val fx: Float, val kg: Float, val dateLabel: String)
+private val LABEL_STYLE = TextStyle(fontSize = 11.sp, fontWeight = FontWeight.Bold)
+private const val AXIS_WIDTH_DP = 34
+private const val AXIS_BELOW_DP = 24f
 
 /**
- * One hand of one grip. Right = solid line and filled circle with white letters; left = dashed line (55 %),
- * tinted circle with a coloured border and dark letters. [gripIndex]/[gripCount] drive the horizontal dodge.
- */
-data class GripLineUi(
-    val code: String,
-    val gripName: String,
-    val handName: String,
-    val right: Boolean,
-    val base: Color,
-    val tint: Color,
-    val dark: Color,
-    val onBase: Color,
-    val points: List<GripPointUi>,
-    val gripIndex: Int,
-    val gripCount: Int,
-)
-
-data class AxisTickUi(val fx: Float, val label: String)
-
-/** A drawn point: where it is, and whether it carries the lettered marker. */
-internal class PlacedPoint(val line: GripLineUi, val point: GripPointUi, val x: Float, val y: Float, val marker: Boolean)
-
-private class Frame(val left: Float, val right: Float, val top: Float, val bottom: Float, val yMin: Float, val yMax: Float, val radius: Float) {
-    fun y(v: Float) = bottom - (v - yMin) / (yMax - yMin) * (bottom - top)
-}
-
-private fun niceMax(value: Float) = max(10f, ceil(value / 10f) * 10f)
-
-private fun frameOf(w: Float, h: Float, d: Float, fontScale: Float, lines: List<GripLineUi>): Frame {
-    val kgs = lines.flatMap { l -> l.points.map { it.kg } }
-    val yMax = niceMax((kgs.maxOrNull() ?: 10f) * 1.1f)
-    val yMin = max(0f, (kgs.minOrNull() ?: 0f) * 0.8f).let { (it / 10).toInt() * 10f }
-    val radius = 12f * d * fontScale.coerceIn(1f, 1.4f)
-    return Frame(left = 40f * d, right = w - 8f * d, top = radius + 20f * d, bottom = h - 24f * d, yMin = yMin, yMax = if (yMax <= yMin) yMin + 10f else yMax, radius = radius)
-}
-
-/** Where every point goes: a day with a single point is dodged; longer lines keep their x and carry one marker. */
-private fun place(frame: Frame, d: Float, lines: List<GripLineUi>): List<PlacedPoint> {
-    val minX = frame.left + frame.radius + 2f * d
-    val maxX = frame.right - frame.radius - 2f * d
-    fun baseX(fx: Float) = minX + fx * (maxX - minX)
-    val out = ArrayList<PlacedPoint>()
-    lines.filter { it.points.size == 1 }.groupBy { it.points[0].fx }.forEach { (fx, group) ->
-        val count = group.maxOf { it.gripCount }
-        val gripDp = if (count > 1) ((maxX - minX) / d - 2 * Dodge.HAND_DP).div(count - 1).coerceIn(10f, Dodge.GRIP_DP) else Dodge.GRIP_DP
-        val offsets = group.map { Dodge.offsetDp(it.right, it.gripIndex, it.gripCount, gripDp = gripDp) * d }
-        val xs = Dodge.place(baseX(fx), offsets, minX, maxX)
-        group.forEachIndexed { i, l -> out += PlacedPoint(l, l.points[0], xs[i], frame.y(l.points[0].kg), marker = true) }
-    }
-    lines.filter { it.points.size > 1 }.forEach { l ->
-        val m = Dodge.markerIndex(l.gripIndex, l.points.size)
-        l.points.forEachIndexed { i, p -> out += PlacedPoint(l, p, baseX(p.fx), frame.y(p.kg), marker = i == m) }
-    }
-    return out
-}
-
-/**
- * Evolution chart: lettered markers (right filled, left tinted), kg above each marker, unique date ticks and
- * tap on any point. Right line solid, left line dashed at 55 %.
+ * Evolution chart. Right hand = solid line, filled dot and filled kilo pill under the dot; left hand = dashed line,
+ * tinted dot and hollow pill above the dot. The y axis stays on the left while the plot scrolls sideways (starting at
+ * the last days) when the days do not fit with legible kilos. Grid every 5 kg, numbers every 10.
+ * [ticks] gives the date ticks for a maximum count (it depends on the width). Tap a point or its pill for details.
  */
 @Composable
 fun GripChart(
     lines: List<GripLineUi>,
-    ticks: List<AxisTickUi>,
+    ticks: (maxTicks: Int) -> List<AxisTickUi>,
     modifier: Modifier = Modifier,
+    labelMode: ChartLabelMode = ChartLabelMode.ALL,
+    lettered: Boolean = false,
     onPointTap: (GripLineUi, GripPointUi) -> Unit = { _, _ -> },
 ) {
     val measurer = rememberTextMeasurer()
-    val fontScale = LocalDensity.current.fontScale
-    Canvas(
-        modifier.pointerInput(lines, fontScale) {
-            detectTapGestures { tap ->
-                val d = density
-                val placed = place(frameOf(size.width.toFloat(), size.height.toFloat(), d, fontScale, lines), d, lines)
-                // Markers first (they sit on top), then the plain dots; the nearest one inside a finger-sized reach.
-                val reach = 22f * d
-                val hit = placed.filter { (it.x - tap.x) * (it.x - tap.x) + (it.y - tap.y) * (it.y - tap.y) <= reach * reach }
-                    .minWithOrNull(compareBy<PlacedPoint> { !it.marker }.thenBy { (it.x - tap.x) * (it.x - tap.x) + (it.y - tap.y) * (it.y - tap.y) })
-                hit?.let { onPointTap(it.line, it.point) }
-            }
-        },
-    ) {
-        val d = density
-        val f = frameOf(size.width, size.height, d, fontScale, lines)
-        drawGrid(measurer, f)
-        val placed = place(f, d, lines)
-        val minX = f.left + f.radius + 2f * d
-        val maxX = f.right - f.radius - 2f * d
-        ticks.forEach { t ->
-            val layout = measurer.measure(t.label, axisStyle)
-            val tx = (minX + t.fx * (maxX - minX) - layout.size.width / 2f).coerceIn(0f, size.width - layout.size.width)
-            drawText(layout, topLeft = Offset(tx, f.bottom + 4f * d))
-        }
-        lines.filter { it.points.size > 1 }.forEach { l ->
-            val path = Path()
-            placed.filter { it.line === l }.forEachIndexed { i, p -> if (i == 0) path.moveTo(p.x, p.y) else path.lineTo(p.x, p.y) }
-            drawPath(
-                path, if (l.right) l.base else l.base.copy(alpha = 0.55f),
-                style = Stroke(2.5f * d, cap = StrokeCap.Round, join = StrokeJoin.Round, pathEffect = if (l.right) null else PathEffect.dashPathEffect(floatArrayOf(6f * d, 5f * d))),
-            )
-        }
-        placed.filter { !it.marker }.forEach { p -> drawDot(p) }
-        placed.filter { it.marker }.forEach { p -> drawMarker(measurer, p, f) }
+    val density = LocalDensity.current
+    val d = density.density
+    val fontScale = density.fontScale
+    val metrics = remember(d, fontScale, lettered, measurer) {
+        val textH = measurer.measure("0", LABEL_STYLE).size.height
+        ChartMetrics(d, textH + 6f * d, 7f * d, { measurer.measure(it, LABEL_STYLE).size.width.toFloat() }, lettered, 12f * d * fontScale.coerceIn(1f, 1.4f))
     }
+    val scale = remember(lines) { scaleOf(lines) }
+    val scroll = rememberScrollState()
+    BoxWithConstraints(modifier) {
+        val heightPx = constraints.maxHeight.toFloat()
+        val viewportPx = constraints.maxWidth - AXIS_WIDTH_DP * d
+        val axisBelow = AXIS_BELOW_DP * d
+        val built = remember(lines, metrics, viewportPx, heightPx, labelMode) { build(lines, metrics, viewportPx, heightPx, axisBelow, labelMode) }
+        LaunchedEffect(scroll.maxValue, lines) { scroll.scrollTo(scroll.maxValue) }
+        Row(Modifier.fillMaxSize()) {
+            Canvas(Modifier.width(AXIS_WIDTH_DP.dp).fillMaxHeight()) { drawAxisNumbers(measurer, built.frame, scale) }
+            Box(Modifier.weight(1f).fillMaxHeight().horizontalScroll(scroll)) {
+                Canvas(
+                    Modifier.width(with(density) { built.contentPx.toDp() }).height(with(density) { heightPx.toDp() }).pointerInput(built) {
+                        detectTapGestures { tap -> hit(built, d, tap)?.let { (l, p) -> onPointTap(l, p) } }
+                    },
+                ) {
+                    val f = built.frame
+                    drawGridLines(f, scale)
+                    drawTicks(measurer, f, ticks, d)
+                    lines.filter { it.points.size > 1 }.forEach { l -> drawSeries(l, built.placed.filter { it.line === l }) }
+                    built.placed.filter { !it.marker }.forEach { drawDot(it) }
+                    built.placed.filter { it.marker }.forEach { drawMarker(measurer, it, f) }
+                    built.labels.labels.forEach { drawPill(measurer, it, built.placed[it.keys.first()].line) }
+                }
+            }
+        }
+    }
+}
+
+/** Pills first (they are on top), then markers, then plain dots; nearest inside a finger-sized reach. */
+private fun hit(b: Built, d: Float, tap: Offset): Pair<GripLineUi, GripPointUi>? {
+    b.labels.labels.firstOrNull { it.contains(tap.x, tap.y) }?.let { val p = b.placed[it.keys.first()]; return p.line to p.point }
+    val reach = 22f * d
+    fun dist(p: PlacedPoint) = (p.x - tap.x) * (p.x - tap.x) + (p.y - tap.y) * (p.y - tap.y)
+    val best = b.placed.filter { dist(it) <= reach * reach }.minWithOrNull(compareBy<PlacedPoint> { !it.marker }.thenBy { dist(it) })
+    return best?.let { it.line to it.point }
+}
+
+private fun DrawScope.drawSeries(l: GripLineUi, pts: List<PlacedPoint>) {
+    val path = Path()
+    pts.forEachIndexed { i, p -> if (i == 0) path.moveTo(p.x, p.y) else path.lineTo(p.x, p.y) }
+    drawPath(
+        path, if (l.right) l.base else l.base.copy(alpha = 0.55f),
+        style = Stroke(2.5f * density, cap = StrokeCap.Round, join = StrokeJoin.Round, pathEffect = if (l.right) null else PathEffect.dashPathEffect(floatArrayOf(6f * density, 5f * density))),
+    )
 }
 
 private fun DrawScope.drawDot(p: PlacedPoint) {
@@ -155,25 +130,49 @@ private fun DrawScope.drawMarker(measurer: TextMeasurer, p: PlacedPoint, f: Fram
         drawCircle(l.tint, f.radius, c)
         drawCircle(l.base, f.radius, c, style = Stroke(2f * density))
     }
-    val style = TextStyle(
-        color = if (l.right) l.onBase else l.dark,
-        fontSize = if (l.code.length >= 3) 9.sp else 11.sp, fontWeight = FontWeight.Medium,
-    )
+    val style = TextStyle(color = if (l.right) l.onBase else l.dark, fontSize = if (l.code.length >= 3) 9.sp else 11.sp, fontWeight = FontWeight.Medium)
     val text = measurer.measure(l.code, style)
     drawText(text, topLeft = Offset(c.x - text.size.width / 2f, c.y - text.size.height / 2f))
-    val value = measurer.measure(formatKg(p.point.kg.toDouble()), axisStyle)
-    val vy = (c.y - f.radius - value.size.height - 1f * density).coerceAtLeast(0f)
-    drawText(value, topLeft = Offset((c.x - value.size.width / 2f).coerceIn(0f, size.width - value.size.width), vy))
 }
 
-private fun DrawScope.drawGrid(measurer: TextMeasurer, f: Frame) {
-    val step = if (f.yMax - f.yMin > 50f) 20f else 10f
-    var v = f.yMin
-    while (v <= f.yMax + 0.01f) {
-        val y = f.y(v)
-        drawLine(RgColors.Outline, Offset(f.left, y), Offset(f.right, y), 1f)
-        val layout = measurer.measure(v.toInt().toString(), axisStyle)
-        drawText(layout, topLeft = Offset(f.left - layout.size.width - 6f, y - layout.size.height / 2f))
-        v += step
+/** Right = filled pill with white number; left (and fused «32 · 32») = tinted pill, coloured border, dark number. */
+private fun DrawScope.drawPill(measurer: TextMeasurer, label: PlacedLabel, line: GripLineUi) {
+    val topLeft = Offset(label.cx - label.width / 2f, label.top)
+    val size = Size(label.width, label.height)
+    val corner = CornerRadius(label.height / 2f)
+    val filled = label.right && !label.fused
+    if (filled) drawRoundRect(line.base, topLeft, size, corner)
+    else {
+        drawRoundRect(line.tint, topLeft, size, corner)
+        drawRoundRect(line.base, topLeft, size, corner, style = Stroke(1.5f * density))
+    }
+    val text = measurer.measure(label.text, LABEL_STYLE.copy(color = if (filled) line.onBase else line.dark))
+    drawText(text, topLeft = Offset(label.cx - text.size.width / 2f, label.top + (label.height - text.size.height) / 2f))
+}
+
+private fun DrawScope.drawGridLines(f: Frame, scale: YScale) {
+    scale.grid().forEach { g ->
+        drawLine(
+            if (g.labelled) RgColors.Outline else RgColors.Outline.copy(alpha = 0.45f),
+            Offset(f.left, f.y(g.value)), Offset(f.right, f.y(g.value)), if (g.labelled) 1f else 0.7f * density,
+        )
+    }
+}
+
+private fun DrawScope.drawAxisNumbers(measurer: TextMeasurer, f: Frame, scale: YScale) {
+    scale.grid().filter { it.labelled }.forEach { g ->
+        val layout = measurer.measure(g.value.toInt().toString(), axisStyle)
+        drawText(layout, topLeft = Offset(size.width - layout.size.width - 6f * density, f.y(g.value) - layout.size.height / 2f))
+    }
+}
+
+/** Date ticks under the plot: as many as fit without touching, never repeated. */
+private fun DrawScope.drawTicks(measurer: TextMeasurer, f: Frame, ticks: (Int) -> List<AxisTickUi>, d: Float) {
+    val labelW = measurer.measure("00/00", axisStyle).size.width + 26f * d
+    val n = max(2, ((f.maxX - f.minX) / labelW).toInt())
+    ticks(n).forEach { t ->
+        val layout = measurer.measure(t.label, axisStyle)
+        val tx = (f.x(t.fx) - layout.size.width / 2f).coerceIn(0f, size.width - layout.size.width)
+        drawText(layout, topLeft = Offset(tx, size.height - AXIS_BELOW_DP * d + 6f * d))
     }
 }
