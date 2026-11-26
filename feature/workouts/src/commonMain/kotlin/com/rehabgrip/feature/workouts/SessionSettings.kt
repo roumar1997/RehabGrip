@@ -4,6 +4,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.Remove
 import androidx.compose.material.icons.rounded.ExpandLess
 import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material3.Icon
@@ -32,7 +34,7 @@ private enum class Sides { BOTH, RIGHT, LEFT }
  * session can be limited to one hand, or the order of the hands changed.
  */
 @Composable
-internal fun SessionSettings(mode: HandMode, first: Hand, onChange: (HandMode, Hand) -> Unit) {
+internal fun SessionSettings(mode: HandMode, first: Hand, handoverSeconds: Int, onHandover: (Int) -> Unit, onChange: (HandMode, Hand) -> Unit) {
     var open by remember { mutableStateOf(mode == HandMode.SINGLE) }
     val sides = when {
         mode != HandMode.SINGLE -> Sides.BOTH
@@ -71,6 +73,22 @@ internal fun SessionSettings(mode: HandMode, first: Hand, onChange: (HandMode, H
                     { if (it == Hand.RIGHT) "Empieza derecha" else "Empieza izquierda" },
                     { onChange(mode, it) },
                 )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Cambio de mano", style = MaterialTheme.typography.titleSmall, color = RgColors.Navy)
+                        Text(
+                            "Segundos de «Cambia a…» antes de que tire la otra mano (0 = sin pausa). Esperar nunca cuenta como fallo.",
+                            style = MaterialTheme.typography.bodySmall, color = RgColors.TextSecondary,
+                        )
+                    }
+                    androidx.compose.material3.FilledTonalIconButton(onClick = { onHandover((handoverSeconds - 1).coerceAtLeast(0)) }) {
+                        Icon(Icons.Rounded.Remove, "Menos")
+                    }
+                    Text("${handoverSeconds} s", style = MaterialTheme.typography.titleMedium, color = RgColors.Navy, modifier = Modifier.padding(horizontal = 8.dp))
+                    androidx.compose.material3.FilledTonalIconButton(onClick = { onHandover((handoverSeconds + 1).coerceAtMost(com.rehabgrip.core.domain.workout.WorkoutTemplate.MAX_HANDOVER_SECONDS)) }) {
+                        Icon(Icons.Rounded.Add, "Más")
+                    }
+                }
             }
         }
     }

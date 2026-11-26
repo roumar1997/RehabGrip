@@ -24,7 +24,7 @@ import kotlin.test.assertTrue
 
 class WorkoutEngineTest {
     private fun tpl(vararg sets: WorkoutSet, mode: HandMode = HandMode.SINGLE) =
-        WorkoutTemplate(name = "t", sets = sets.toList(), handMode = mode, firstHand = Hand.LEFT)
+        WorkoutTemplate(name = "t", sets = sets.toList(), handMode = mode, firstHand = Hand.LEFT, handoverSeconds = 0)
 
     /** Ticks [ms] in 100 ms steps with constant [kg]; returns all events. */
     private fun WorkoutEngine.run(ms: Long, kg: Double): List<EngineEvent> =

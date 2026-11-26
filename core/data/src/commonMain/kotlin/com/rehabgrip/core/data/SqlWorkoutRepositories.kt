@@ -75,6 +75,7 @@ class SqlWorkoutRepository(private val db: RehabGripDatabase, private val grips:
                 sets = byTemplate[t.id].orEmpty().map { it.toDomain(gripById, gripByExercise) },
                 handMode = enumOrNull<HandMode>(t.hand_mode) ?: HandMode.SINGLE,
                 firstHand = enumOrNull<Hand>(t.first_hand) ?: Hand.RIGHT,
+                handoverSeconds = t.handover_s.toInt(),
             )
         }
     }
@@ -82,10 +83,10 @@ class SqlWorkoutRepository(private val db: RehabGripDatabase, private val grips:
     override suspend fun upsert(template: WorkoutTemplate): Long = withContext(Dispatchers.IO) {
         q.transactionWithResult {
             val id = if (template.id == 0L) {
-                q.insertTemplate(template.name.trim(), template.handMode.name, template.firstHand.name)
+                q.insertTemplate(template.name.trim(), template.handMode.name, template.firstHand.name, template.handoverSeconds.toLong())
                 db.rehabGripQueries.lastId().executeAsOne()
             } else {
-                q.updateTemplate(template.name.trim(), template.handMode.name, template.firstHand.name, template.id)
+                q.updateTemplate(template.name.trim(), template.handMode.name, template.firstHand.name, template.handoverSeconds.toLong(), template.id)
                 template.id
             }
             q.deleteSetsOf(id)

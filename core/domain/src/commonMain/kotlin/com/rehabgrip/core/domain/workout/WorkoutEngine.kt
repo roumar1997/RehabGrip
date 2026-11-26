@@ -5,7 +5,8 @@ import com.rehabgrip.core.domain.model.Hand
 /** One scheduled pull, in strict turn order. [setIndex] 0-based, [rep] 1-based. */
 data class Slot(val setIndex: Int, val rep: Int, val hand: Hand)
 
-enum class EnginePhase { PREPARE, REST, WAITING, PULL, DONE }
+/** HANDOVER = «Cambia a IZQUIERDA · 3…2…1»: a short pause when the other hand is up next. */
+enum class EnginePhase { PREPARE, REST, HANDOVER, WAITING, PULL, DONE }
 
 /** What one hand is doing right now: pulling (TIRA), resting (DESCANSA) or waiting for its turn (ESPERA). */
 enum class HandState { PULL, REST, WAIT }
@@ -64,6 +65,8 @@ class WorkoutEngine(
     private var pulling = false
     private var pullMs = 0L
     private var belowMs = 0L
+    private var handoverLeft = 0L
+    private val handoverMs = template.handoverSeconds.coerceIn(0, WorkoutTemplate.MAX_HANDOVER_SECONDS) * 1000L
     private var peak = 0.0
     private var lastCountdown = Int.MAX_VALUE
 
@@ -84,6 +87,7 @@ class WorkoutEngine(
             if (prepareLeft > 0) return events
         } else {
             rest.keys.forEach { h -> rest[h] = (rest.getValue(h) - dtMs).coerceAtLeast(0) }
+            handoverLeft = (handoverLeft - dtMs).coerceAtLeast(0)
         }
         val slot = current ?: return events
         val set = setOf(slot)
@@ -91,6 +95,9 @@ class WorkoutEngine(
             val left = rest.getValue(slot.hand)
             countdown(left, events)
             if (left > 0) return events
+            // Short «Cambia a…» pause: no penalty, and waiting for the user afterwards never fails a rep.
+            countdown(handoverLeft, events)
+            if (handoverLeft > 0) return events
             // The clock never runs until the force reaches the threshold.
             val startKg = if (set.startMode == StartMode.WEIGHT) maxOf(set.thresholdKg, zoneFor(slot)?.minKg ?: 0.0) else set.thresholdKg
             if (kg < startKg) return events
@@ -137,6 +144,7 @@ class WorkoutEngine(
         if (pulling) return emptyList()
         results += RepResult(slot, 0.0, 0, skipped = true)
         index++
+        handoverLeft = 0
         return listOfNotNull(EngineEvent.TurnSkipped(slot), if (current == null) EngineEvent.Finished else null)
     }
 
@@ -148,11 +156,13 @@ class WorkoutEngine(
             prepareLeft > 0 -> EnginePhase.PREPARE
             pulling -> EnginePhase.PULL
             rest.getValue(slot.hand) > 0 -> EnginePhase.REST
+            handoverLeft > 0 -> EnginePhase.HANDOVER
             else -> EnginePhase.WAITING
         }
         val display = when (phase) {
             EnginePhase.PREPARE -> prepareLeft
             EnginePhase.REST -> rest.getValue(slot!!.hand)
+            EnginePhase.HANDOVER -> handoverLeft
             EnginePhase.PULL -> if (set!!.toFailureFor(slot!!.hand) == ToFailure.TIME) pullMs else (set.workSeconds * 1000L - pullMs).coerceAtLeast(0)
             else -> 0
         }
@@ -176,6 +186,7 @@ class WorkoutEngine(
             h == slot.hand -> when (phase) {
                 EnginePhase.PREPARE -> HandPanel(h, HandState.WAIT, display, inTurn = true)
                 EnginePhase.REST -> HandPanel(h, HandState.REST, display, inTurn = true)
+                EnginePhase.HANDOVER -> HandPanel(h, HandState.WAIT, display, inTurn = true)
                 else -> HandPanel(h, HandState.PULL, if (phase == EnginePhase.PULL) display else 0, inTurn = true)
             }
             phase != EnginePhase.PREPARE && rest.getValue(h) > 0 -> HandPanel(h, HandState.REST, rest.getValue(h), inTurn = false)
@@ -193,6 +204,8 @@ class WorkoutEngine(
         belowMs = 0
         index++
         rest[slot.hand] = if (current == null) 0 else setOf(slot).restSeconds * 1000L
+        // The rest of THIS hand counts from the end of ITS pull; the other hand is up next.
+        handoverLeft = if (current != null && current!!.hand != slot.hand) handoverMs else 0L
         events += EngineEvent.PullEnded(result)
     }
 

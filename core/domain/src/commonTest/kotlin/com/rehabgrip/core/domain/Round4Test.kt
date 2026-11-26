@@ -50,7 +50,7 @@ class Round4Test {
         assertEquals(SetTarget.Kg(10.0, 20.0), set.targetFor(Hand.RIGHT))
         assertEquals(SetTarget.PercentOfRecord(70, 80), set.targetFor(Hand.LEFT))
         assertEquals(ToFailure.TIME, set.toFailureFor(Hand.LEFT))
-        val t = WorkoutTemplate(name = "t", sets = listOf(set), handMode = HandMode.ALTERNATING)
+        val t = WorkoutTemplate(name = "t", sets = listOf(set), handMode = HandMode.ALTERNATING, handoverSeconds = 0)
         val e = WorkoutEngine(t, recordKg = { h, _ -> if (h == Hand.LEFT) 50.0 else null }, prepareMs = 0)
         // Right is first: its own kg band applies.
         assertEquals(10.0, e.snapshot().zone!!.minKg)

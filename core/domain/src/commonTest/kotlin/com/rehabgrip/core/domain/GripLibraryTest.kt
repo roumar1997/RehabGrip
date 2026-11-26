@@ -201,7 +201,7 @@ class GripEvaluationFlowTest {
 
 class HandPanelsTest {
     private fun tpl(mode: HandMode) = WorkoutTemplate(
-        name = "t", sets = listOf(WorkoutSet(2, 5, 8)), handMode = mode, firstHand = Hand.RIGHT,
+        name = "t", sets = listOf(WorkoutSet(2, 5, 8)), handMode = mode, firstHand = Hand.RIGHT, handoverSeconds = 0,
     )
 
     private fun WorkoutEngine.run(ms: Long, kg: Double) = repeat((ms / 100).toInt()) { tick(100, kg) }

@@ -85,6 +85,7 @@ fun WorkoutEditorScreen(
     var name by remember { mutableStateOf(initial.name) }
     var handMode by remember { mutableStateOf(initial.handMode) }
     var firstHand by remember { mutableStateOf(initial.firstHand) }
+    var handover by remember { mutableStateOf(initial.handoverSeconds) }
     var nextId by remember { mutableStateOf(initial.sets.size) }
     val rows = remember { mutableStateListOf(*initial.sets.mapIndexed { i, s -> RowItem(i, s) }.toTypedArray()) }
     var selecting by remember { mutableStateOf(false) }
@@ -96,7 +97,7 @@ fun WorkoutEditorScreen(
     var evaluating by remember { mutableStateOf<GripSpec?>(null) }
     var confirmDelete by remember { mutableStateOf(false) }
 
-    val draft = initial.copy(name = name, sets = rows.map { it.set }, handMode = handMode, firstHand = firstHand)
+    val draft = initial.copy(name = name, sets = rows.map { it.set }, handMode = handMode, firstHand = firstHand, handoverSeconds = handover)
     evaluating?.let { grip ->
         evaluateContent(grip) { evaluating = null }
         return
@@ -130,7 +131,7 @@ fun WorkoutEditorScreen(
                 name, { name = it.take(40) }, label = { Text("Nombre") }, singleLine = true,
                 shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth(),
             )
-            SessionSettings(handMode, firstHand) { m, f -> handMode = m; firstHand = f }
+            SessionSettings(handMode, firstHand, handover, { handover = it }) { m, f -> handMode = m; firstHand = f }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 ToolButton(if (selecting) "Cancelar" else "Edición masiva", Icons.Rounded.EditNote, selecting) {
                     selecting = !selecting

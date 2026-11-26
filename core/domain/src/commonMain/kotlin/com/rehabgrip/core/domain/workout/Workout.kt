@@ -111,6 +111,8 @@ data class WorkoutTemplate(
     val handMode: HandMode = HandMode.SINGLE,
     /** First hand; the other one is used by BOTH_SEQUENTIAL / ALTERNATING. */
     val firstHand: Hand = Hand.RIGHT,
+    /** Seconds of «Cambia a…» when the other hand is up next (0 = no pause). */
+    val handoverSeconds: Int = DEFAULT_HANDOVER_SECONDS,
 ) {
     fun validate(): List<String> = buildList {
         if (name.isBlank()) add("Ponle un nombre")
@@ -127,6 +129,8 @@ data class WorkoutTemplate(
     }
 
     companion object {
+        const val DEFAULT_HANDOVER_SECONDS = 3
+        const val MAX_HANDOVER_SECONDS = 10
         const val GRIP_SESSION_NAME = "Entreno de agarre"
 
         /** Library keys of the six grips of the default session, in order. */

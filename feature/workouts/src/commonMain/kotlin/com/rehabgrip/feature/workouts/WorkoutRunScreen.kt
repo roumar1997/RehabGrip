@@ -157,6 +157,7 @@ private fun phaseText(phase: EnginePhase, state: RunState): String = when {
     state.started && state.paused -> "En pausa"
     phase == EnginePhase.PREPARE -> "Prepárate…"
     phase == EnginePhase.REST -> "Descansa"
+    phase == EnginePhase.HANDOVER -> "Cambia a ${state.snapshot.slot?.let { handName(it.hand) } ?: ""}"
     phase == EnginePhase.WAITING -> "¡Tira! El tiempo empieza al superar el umbral"
     phase == EnginePhase.PULL -> "¡Tira!"
     else -> "Buen trabajo"

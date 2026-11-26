@@ -41,7 +41,8 @@ CREATE TABLE workout_template (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
     hand_mode TEXT NOT NULL,
-    first_hand TEXT NOT NULL
+    first_hand TEXT NOT NULL,
+    handover_s INTEGER NOT NULL DEFAULT 3
 );
 
 CREATE TABLE workout_set (
@@ -126,10 +127,10 @@ selectTemplates:
 SELECT * FROM workout_template ORDER BY id;
 
 insertTemplate:
-INSERT INTO workout_template(name, hand_mode, first_hand) VALUES (?, ?, ?);
+INSERT INTO workout_template(name, hand_mode, first_hand, handover_s) VALUES (?, ?, ?, ?);
 
 updateTemplate:
-UPDATE workout_template SET name = ?, hand_mode = ?, first_hand = ? WHERE id = ?;
+UPDATE workout_template SET name = ?, hand_mode = ?, first_hand = ?, handover_s = ? WHERE id = ?;
 
 deleteTemplate:
 DELETE FROM workout_template WHERE id = ?;

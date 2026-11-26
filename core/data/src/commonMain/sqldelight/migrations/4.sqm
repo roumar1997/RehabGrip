@@ -1,0 +1,2 @@
+-- v4 -> v5: seconds of «Cambia a…» between hands.
+ALTER TABLE workout_template ADD COLUMN handover_s INTEGER NOT NULL DEFAULT 3;
