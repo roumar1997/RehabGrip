@@ -32,10 +32,10 @@ data class GripRecordRow(val grip: GripSpec, val right: GripRecord?, val left: G
  * grip and hand wins; for the predefined grips older plain measurements still count.
  */
 object GripRecords {
-    fun record(evaluations: List<GripEvaluation>, measurements: List<Measurement>, grip: GripSpec, hand: Hand): GripRecord? {
+    fun record(evaluations: List<GripEvaluation>, measurements: List<Measurement>, grip: GripSpec, hand: Hand, library: List<GripSpec> = emptyList()): GripRecord? {
         evaluations.filter { it.gripId == grip.id && it.hand == hand }.maxByOrNull { it.epochMillis }
             ?.let { return GripRecord(it.maxKg, it.epochMillis, fromEvaluation = true) }
-        return measurements.filter { it.hand == hand && grip.matches(it) }
+        return measurements.filter { it.hand == hand && grip.matches(it, library) }
             .maxByOrNull { it.epochMillis }?.let { GripRecord(it.kg, it.epochMillis, fromEvaluation = false) }
     }
 
@@ -50,11 +50,11 @@ object GripRecords {
             is Grip.Library -> library.firstOrNull { it.id == grip.grip.id } ?: grip.grip
             is Grip.Standard -> library.firstOrNull { it.builtIn == grip.exercise } ?: return null
         }
-        return record(evaluations, measurements, spec, hand)
+        return record(evaluations, measurements, spec, hand, library)
     }
 
     fun rows(evaluations: List<GripEvaluation>, measurements: List<Measurement>, library: List<GripSpec>): List<GripRecordRow> =
-        library.map { g -> GripRecordRow(g, record(evaluations, measurements, g, Hand.RIGHT), record(evaluations, measurements, g, Hand.LEFT)) }
+        library.map { g -> GripRecordRow(g, record(evaluations, measurements, g, Hand.RIGHT, library), record(evaluations, measurements, g, Hand.LEFT, library)) }
 
     /** (grip, hand) pairs a percent-of-record set will need but nobody has evaluated yet. */
     fun missingBases(template: WorkoutTemplate, recordKg: (Hand, Grip) -> Double?): List<MissingBase> =

@@ -66,7 +66,7 @@ fun symmetryRows(
         label, exercise, grip, s.symmetryPercent(injury.focusHand), s.symmetryTrend(injury.focusHand),
         s.right.lastKg, s.left.lastKg, s,
     )
-    val fromGrips = grips.map { g -> row(g.label, g.builtIn, g, calc.summarizeGrip(all, g, range, nowMillis)) }
+    val fromGrips = grips.map { g -> row(g.label, g.builtIn, g, calc.summarizeGrip(all, g, range, nowMillis, grips)) }
     val others = (if (grips.isEmpty()) Exercise.selectable else listOf(Exercise.DYNAMOMETER))
         .map { e -> row(Labels.exercise(e), e, null, calc.summarize(all, e, range, nowMillis)) }
     return fromGrips + others

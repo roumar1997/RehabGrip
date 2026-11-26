@@ -78,8 +78,8 @@ class ProgressCalculator(private val timeZone: TimeZone = TimeZone.currentSystem
     }
 
     /** Evolution of one library grip (its own evaluations, sessions and, for predefined ones, legacy records). */
-    fun summarizeGrip(all: List<Measurement>, grip: GripSpec, range: ProgressRange, nowMillis: Long): ProgressSummary =
-        build(all, grip.builtIn ?: Exercise.CUSTOM, grip.label, range, nowMillis) { grip.matches(it) }
+    fun summarizeGrip(all: List<Measurement>, grip: GripSpec, range: ProgressRange, nowMillis: Long, library: List<GripSpec> = emptyList()): ProgressSummary =
+        build(all, grip.builtIn ?: Exercise.CUSTOM, grip.label, range, nowMillis) { grip.matches(it, library) }
 
     private fun build(
         all: List<Measurement>,

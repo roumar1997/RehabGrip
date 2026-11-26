@@ -21,10 +21,10 @@ object MaxRecords {
 
     private fun rows(measurements: List<Measurement>, library: List<GripSpec>): List<MaxRow> {
         val perGrip = library.map { g ->
-            val own = measurements.filter { g.matches(it) }
+            val own = measurements.filter { g.matches(it, library) }
             MaxRow(g.label, g, best(own, Hand.RIGHT), best(own, Hand.LEFT))
         }
-        val dyn = measurements.filter { it.exercise == Exercise.DYNAMOMETER }
+        val dyn = measurements.filter { GripKey.of(it, library) == GripKey.Plain(Exercise.DYNAMOMETER) }
         return perGrip + MaxRow("Dinamómetro de mano", null, best(dyn, Hand.RIGHT), best(dyn, Hand.LEFT))
     }
 

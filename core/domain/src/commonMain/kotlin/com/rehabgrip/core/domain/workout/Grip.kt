@@ -48,8 +48,9 @@ data class GripSpec(
     }
 
     /** True when [m] was measured with this grip (explicitly or, for predefined ones, by exercise). */
-    fun matches(m: Measurement): Boolean =
-        (id != 0L && m.gripId == id) || (m.gripId == null && builtIn != null && m.exercise == builtIn)
+    fun matches(m: Measurement, library: List<GripSpec> = emptyList()): Boolean =
+        if (library.isNotEmpty()) id != 0L && com.rehabgrip.core.domain.grip.GripKey.of(m, library) == com.rehabgrip.core.domain.grip.GripKey.Library(id)
+        else (id != 0L && m.gripId == id) || (m.gripId == null && builtIn != null && m.exercise == builtIn)
 
     companion object {
         val EDGE_RANGE = 4..60
