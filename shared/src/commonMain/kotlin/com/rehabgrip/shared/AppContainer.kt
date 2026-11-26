@@ -56,6 +56,7 @@ class AppContainer(val platform: PlatformServices) {
     val workouts = SqlWorkoutRepository(db, grips)
     val workoutResults = SqlWorkoutResultRepository(db)
     val saveMeasurement = SaveMeasurement(measurements)
+    val updateMeasurement = com.rehabgrip.core.domain.usecase.UpdateMeasurement(measurements)
     val saveGripEvaluation = SaveGripEvaluation(gripEvaluations, measurements)
     private val csv = CsvExporter()
 

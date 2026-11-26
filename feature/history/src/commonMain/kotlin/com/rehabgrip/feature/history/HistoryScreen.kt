@@ -82,6 +82,8 @@ fun HistoryScreen(
     onDelete: (Long) -> Unit,
     workouts: List<WorkoutResultEntry> = emptyList(),
     onDeleteWorkout: (Long) -> Unit = {},
+    onEdit: (Measurement) -> Unit = {},
+    onChangeWorkoutDate: (Long, Long) -> Unit = { _, _ -> },
     grips: List<GripSpec> = emptyList(),
 ) {
     fun nameOf(m: Measurement) = m.gripId?.let { id -> grips.firstOrNull { it.id == id } }?.label ?: Labels.exercise(m.exercise)
@@ -92,6 +94,7 @@ fun HistoryScreen(
     val filterGrip = grips.firstOrNull { it.id == gripFilter }
     var showFilters by rememberSaveable { mutableStateOf(true) }
     var toDelete by remember { mutableStateOf<Measurement?>(null) }
+    var editing by remember { mutableStateOf<Measurement?>(null) }
     val filtered = measurements.filter {
         (handFilter.hand == null || it.hand == handFilter.hand) && matchesFilter(it, gripFilter, filterGrip)
     }.sortedByDescending { it.epochMillis }
@@ -107,7 +110,7 @@ fun HistoryScreen(
             Modifier.padding(horizontal = 16.dp).padding(bottom = 8.dp), colorFor = { RgColors.Navy },
         )
         if (showWorkouts) {
-            WorkoutResultsList(workouts, onDeleteWorkout, Modifier.weight(1f))
+            WorkoutResultsList(workouts, onDeleteWorkout, onChangeWorkoutDate, Modifier.weight(1f))
             return@Column
         }
         if (showFilters) {
@@ -128,13 +131,14 @@ fun HistoryScreen(
             if (filtered.isEmpty()) {
                 item { Text("Todavía no hay registros con este filtro", color = RgColors.TextSecondary, style = MaterialTheme.typography.bodyMedium) }
             }
-            items(filtered, key = { it.id }) { m -> HistoryRow(m, nameOf(m)) { toDelete = m } }
+            items(filtered, key = { it.id }) { m -> HistoryRow(m, nameOf(m), { editing = m }) { toDelete = m } }
         }
         RgSecondaryButton(
             "Exportar datos (CSV)", { onExport(filtered) },
             Modifier.padding(horizontal = 16.dp, vertical = 10.dp), icon = Icons.Rounded.IosShare,
         )
     }
+    editing?.let { m -> EditRecordDialog(m, nameOf(m), { editing = null }) { onEdit(it); editing = null } }
     toDelete?.let { m ->
         AlertDialog(
             onDismissRequest = { toDelete = null },
@@ -156,11 +160,11 @@ private fun Pill(text: String, selected: Boolean, onClick: () -> Unit) = Text(
 )
 
 @Composable
-private fun HistoryRow(m: Measurement, name: String, onDelete: () -> Unit) {
+private fun HistoryRow(m: Measurement, name: String, onEdit: () -> Unit, onDelete: () -> Unit) {
     val dt = Instant.fromEpochMilliseconds(m.epochMillis).toLocalDateTime(TimeZone.currentSystemDefault())
     val date = "${dt.dayOfMonth.toString().padStart(2, '0')}/${dt.monthNumber.toString().padStart(2, '0')}/${dt.year}"
     val handColor = if (m.hand == Hand.RIGHT) RgColors.RightHand else RgColors.LeftHand
-    RgCard(Modifier.fillMaxWidth(), padding = PaddingValues(start = 14.dp, top = 10.dp, bottom = 10.dp, end = 4.dp)) {
+    RgCard(Modifier.fillMaxWidth(), onClick = onEdit, padding = PaddingValues(start = 14.dp, top = 10.dp, bottom = 10.dp, end = 4.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(12.dp).clip(CircleShape).background(handColor))
             Spacer(Modifier.width(12.dp))

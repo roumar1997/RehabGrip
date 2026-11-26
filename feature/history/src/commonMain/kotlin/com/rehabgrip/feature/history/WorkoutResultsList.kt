@@ -8,6 +8,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.DeleteOutline
+import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -33,7 +34,10 @@ import kotlinx.datetime.toLocalDateTime
 
 /** Guided sessions: max, average while pulling and % in zone per hand. */
 @Composable
-internal fun WorkoutResultsList(entries: List<WorkoutResultEntry>, onDelete: (Long) -> Unit, modifier: Modifier = Modifier) {
+internal fun WorkoutResultsList(
+    entries: List<WorkoutResultEntry>, onDelete: (Long) -> Unit, onChangeDate: (Long, Long) -> Unit, modifier: Modifier = Modifier,
+) {
+    var editingDate by remember { mutableStateOf<WorkoutResultEntry?>(null) }
     var deleting by remember { mutableStateOf<WorkoutResultEntry?>(null) }
     LazyColumn(modifier, contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         if (entries.isEmpty()) {
@@ -44,6 +48,7 @@ internal fun WorkoutResultsList(entries: List<WorkoutResultEntry>, onDelete: (Lo
             RgCard(Modifier.fillMaxWidth()) {
                 Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                     Text(e.name, style = MaterialTheme.typography.titleMedium, color = RgColors.Navy, modifier = Modifier.weight(1f))
+                    IconButton(onClick = { editingDate = e }) { Icon(Icons.Outlined.Edit, "Cambiar fecha", tint = RgColors.TextSecondary) }
                     IconButton(onClick = { deleting = e }) { Icon(Icons.Outlined.DeleteOutline, "Borrar entrenamiento", tint = RgColors.TextSecondary) }
                 }
                 Text(
@@ -63,6 +68,7 @@ internal fun WorkoutResultsList(entries: List<WorkoutResultEntry>, onDelete: (Lo
             }
         }
     }
+    editingDate?.let { e -> EditWorkoutDateDialog(e.epochMillis, e.name, { editingDate = null }) { onChangeDate(e.epochMillis, it); editingDate = null } }
     deleting?.let { e ->
         AlertDialog(
             onDismissRequest = { deleting = null },

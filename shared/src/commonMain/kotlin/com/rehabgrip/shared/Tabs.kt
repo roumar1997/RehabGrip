@@ -56,6 +56,8 @@ internal fun TabContent(tab: Tab, container: AppContainer, navigator: Navigator,
             onDelete = { id -> scope.launch { container.measurements.delete(id) } },
             workouts = data.workoutResults,
             onDeleteWorkout = { at -> scope.launch { container.workoutResults.delete(at) } },
+            onEdit = { m -> scope.launch { container.updateMeasurement(m, container.now()) } },
+            onChangeWorkoutDate = { old, new -> scope.launch { container.workoutResults.changeDate(old, com.rehabgrip.core.domain.model.RecordDate.resolve(new, container.now())) } },
             grips = data.grips,
         )
         Tab.PROFILE -> ProfileTab(container, navigator, session, data)
