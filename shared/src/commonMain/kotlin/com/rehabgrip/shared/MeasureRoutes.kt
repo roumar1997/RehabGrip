@@ -110,6 +110,7 @@ private fun MeterRoute(container: AppContainer, navigator: Navigator, data: AppD
         recentPeople = data.recentPeople,
         onBack = { navigator.pop() },
         onResetMax = presenter::resetMax,
+        onTare = presenter::tare,
         onSave = { s ->
             scope.launch {
                 container.saveMeasurement(

@@ -40,6 +40,8 @@ class LiveMeasurementPresenter(
     val state: StateFlow<LiveState> = _state.asStateFlow()
     private var jobs: List<Job> = emptyList()
     private val monitor = SignalMonitor(source, scope)
+    private var offset = 0.0
+    private var lastRaw = 0.0
     private val startMark = TimeSource.Monotonic.markNow()
 
     /** Live graph samples (drawn without recomposing). */
@@ -54,7 +56,8 @@ class LiveMeasurementPresenter(
             scope.launch {
                 source.readings.collect { reading ->
                     if (!_state.value.recording) return@collect
-                    onSample(ForceSample(startMark.elapsedNow().inWholeMilliseconds, reading.kg))
+                    lastRaw = reading.kg
+                    onSample(ForceSample(startMark.elapsedNow().inWholeMilliseconds, (reading.kg - offset).coerceAtLeast(0.0)))
                 }
             },
         )
@@ -80,6 +83,12 @@ class LiveMeasurementPresenter(
     fun resetMax() {
         tracker.reset()
         _state.update { it.copy(peak = null, attempts = emptyList(), currentKg = 0.0) }
+    }
+
+    /** «A cero»: the current reading becomes the zero (software tare) and the maximum restarts. */
+    fun tare() {
+        offset = lastRaw
+        resetMax()
     }
 
     fun dispose() {

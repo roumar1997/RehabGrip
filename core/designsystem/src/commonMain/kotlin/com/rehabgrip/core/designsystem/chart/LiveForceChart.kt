@@ -109,6 +109,7 @@ fun LiveForceChart(
             val maxPoints = max(8, (size.width * MAX_POINTS_PER_PX).toInt())
             val zoneTop = (zone?.maxKg ?: zone?.minKg ?: 0.0).toFloat()
             val buf = trace.buffer
+            var holdMax = 20f // grows at once, shrinks only when far too big: no jumps from noise
 
             onDrawBehind {
                 trace.tick // invalidates only the drawing when a sample arrives
@@ -120,7 +121,9 @@ fun LiveForceChart(
 
                 var visibleMax = 0f
                 for (i in first..last) visibleMax = max(visibleMax, buf.valueAt(i))
-                val scale = niceScale(max(max(20f, zoneTop * 1.25f), visibleMax * 1.15f).toDouble(), 3)
+                val needed = max(max(20f, zoneTop * 1.25f), visibleMax * 1.15f)
+                if (needed > holdMax || needed < holdMax * 0.5f) holdMax = needed
+                val scale = niceScale(holdMax.toDouble(), 3)
                 val yMax = scale.max.toFloat()
                 fun x(t: Long) = left + (t - start).toFloat() / windowMs * (right - left)
                 fun y(v: Float) = bottom - v / yMax * (bottom - top)
