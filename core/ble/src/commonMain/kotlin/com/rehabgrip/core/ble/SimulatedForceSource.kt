@@ -24,6 +24,8 @@ import kotlin.random.Random
 class SimulatedForceSource(
     private val peakKg: Double = 36.0,
     private val random: Random = Random.Default,
+    /** Debug: mixes frames of a second device (constant 87 kg) and isolated spikes, through the real pipeline. */
+    private val contaminated: Boolean = false,
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
 ) : ForceSource {
     override val name = "Báscula simulada"
@@ -33,6 +35,8 @@ class SimulatedForceSource(
     private val _readings = MutableSharedFlow<ScaleReading>(extraBufferCapacity = 64)
     override val readings: SharedFlow<ScaleReading> = _readings.asSharedFlow()
     private var job: Job? = null
+    private val pipeline = ScalePipeline()
+    private var frame = 0
 
     /** Set once a session drives the scale; before that it free-runs in cycles. */
     private var driven = false
@@ -55,7 +59,16 @@ class SimulatedForceSource(
                 sinceStartMs = tick * PERIOD_MS
                 val kg = if (driven) drivenValue(sinceStartMs) else valueAt(sinceStartMs)
                 lastKg = kg
-                _readings.emit(ScaleReading(kg, stable = false))
+                if (contaminated) {
+                    frame++
+                    val a = if (frame % 25 == 0) 97.9 else kg
+                    val ra = pipeline.process("SIM-A", "IF_B7", -55, CraneAdvertisementParser.encode(a, true), sinceStartMs)
+                    val rb = pipeline.process("SIM-B", null, -48, otherDevice, sinceStartMs)
+                    ra?.let { _readings.emit(it) }
+                    rb?.let { _readings.emit(it) }
+                } else {
+                    _readings.emit(ScaleReading(kg, stable = false))
+                }
                 tick++
                 delay(PERIOD_MS)
             }
@@ -121,6 +134,8 @@ class SimulatedForceSource(
     private fun easeOut(x: Double) = 1.0 - (1.0 - x) * (1.0 - x)
 
     private companion object {
+        /** Another device with the same company id and no 02 03 signature: always 87.0 kg. */
+        val otherDevice = ByteArray(12).also { it[0] = 0x10; it[1] = 0x20; it[10] = 0x22; it[11] = 0x0C }
         const val PERIOD_MS = 100L
         const val CONNECT_DELAY_MS = 900L
         const val REST_MS = 1_500L

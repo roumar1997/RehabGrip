@@ -30,6 +30,7 @@ import com.rehabgrip.core.domain.workout.HandWorkoutResult
 import com.rehabgrip.core.domain.workout.WorkoutResultEntry
 import com.rehabgrip.core.domain.workout.WorkoutTemplate
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 
 /** What each platform must provide (Android activity / iOS entry point). */
@@ -60,8 +61,36 @@ class AppContainer(val platform: PlatformServices) {
 
     fun now(): Long = Clock.System.now().toEpochMilliseconds()
 
+    private val background = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.Default)
+
+    /** The one scale this phone listens to (iOS UUID / Android MAC); null = auto-select the strongest. */
+    @Volatile var lockedScaleId: String? = null
+
+    /** Debug: the simulated scale also mixes in frames of another device and spikes. */
+    @Volatile var contaminatedSim: Boolean = false
+
     fun forceSource(simulated: Boolean): ForceSource =
-        if (simulated) SimulatedForceSource() else platform.realForceSource()
+        if (simulated) SimulatedForceSource(contaminated = contaminatedSim)
+        else platform.realForceSource().also { s ->
+            s.configureLock(lockedScaleId) { id, name -> background.launch { useScale(id, name) } }
+        }
+
+    suspend fun loadScale() {
+        lockedScaleId = settings.observeString(KEY_SCALE_ID).first()
+    }
+
+    /** «Usar esta báscula»: from the diagnostics, or chosen automatically. */
+    suspend fun useScale(id: String, name: String?) {
+        lockedScaleId = id
+        settings.setString(KEY_SCALE_ID, id)
+        settings.setString(KEY_SCALE_NAME, name.orEmpty())
+    }
+
+    suspend fun forgetScale() {
+        lockedScaleId = null
+        settings.setString(KEY_SCALE_ID, "")
+        settings.setString(KEY_SCALE_NAME, "")
+    }
 
     fun export(list: List<Measurement>) =
         platform.exportSharer.share("rehabgrip-${Clock.System.now().toEpochMilliseconds()}.csv", csv.export(list))
@@ -118,8 +147,10 @@ class AppContainer(val platform: PlatformServices) {
         }
     }
 
-    private companion object {
+    companion object {
         const val KEY_SEEDED = "seeded_example_workout"
         const val KEY_SEEDED_GRIP_SESSION = "seeded_grip_session"
+        const val KEY_SCALE_ID = "scale_device_id"
+        const val KEY_SCALE_NAME = "scale_device_name"
     }
 }

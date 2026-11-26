@@ -41,6 +41,9 @@ internal data class AppData(
     val grips: List<GripSpec>,
     val gripEvaluations: List<GripEvaluation>,
     val workoutResults: List<WorkoutResultEntry>,
+    val scaleName: String? = null,
+    val scaleId: String? = null,
+    val contaminated: Boolean = false,
 ) {
     val measurements: List<Measurement> = allMeasurements.filter { it.isMine }
 
@@ -61,7 +64,12 @@ internal fun rememberAppData(container: AppContainer): AppData {
     val grips by remember { container.grips.observeAll() }.collectAsState(emptyList())
     val evaluations by remember { container.gripEvaluations.observeAll() }.collectAsState(emptyList())
     val results by remember { container.workoutResults.observeAll() }.collectAsState(emptyList())
-    return AppData(measurements, simulated, workouts, grips, evaluations, results)
+    val scaleName by remember { container.settings.observeString(AppContainer.KEY_SCALE_NAME) }.collectAsState(null)
+    val scaleId by remember { container.settings.observeString(AppContainer.KEY_SCALE_ID) }.collectAsState(null)
+    val contaminated by remember { container.settings.observeFlag(SIM_CONTAMINATED_KEY, false) }.collectAsState(false)
+    container.contaminatedSim = contaminated
+    container.lockedScaleId = scaleId ?: container.lockedScaleId
+    return AppData(measurements, simulated, workouts, grips, evaluations, results, scaleName, scaleId, contaminated)
 }
 
 /** Users who onboarded before injuries existed answer it once. */

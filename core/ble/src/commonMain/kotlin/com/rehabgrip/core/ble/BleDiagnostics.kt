@@ -72,7 +72,7 @@ class DiagnosticsAccumulator {
             SeenDevice(
                 id = e.id, name = e.name, rssi = e.rssi, companyId = company,
                 manufacturerHex = m?.toHex().orEmpty(), advertisements = e.count,
-                perSecond = e.count / seconds, looksLikeScale = looksLikeScale(e.name, company), interpretedKg = e.kg,
+                perSecond = e.count / seconds, looksLikeScale = looksLikeScale(e.name, company) || (m != null && CraneAdvertisementParser.hasSignature(CraneAdvertisementParser.payloadOf(m))), interpretedKg = e.kg,
             )
         }.sortedWith(compareByDescending<SeenDevice> { it.looksLikeScale }.thenByDescending { it.rssi })
     }
@@ -87,11 +87,16 @@ class DiagnosticsAccumulator {
             appendLine("Diagnóstico Bluetooth Rehagrip · escaneo de $seconds s · ${devices.size} dispositivos")
             devices.forEach { d ->
                 appendLine()
-                appendLine("${if (d.looksLikeScale) "[WH-C06?] " else ""}${d.name ?: "(sin nombre)"} · ${d.id}")
-                appendLine("  RSSI ${d.rssi} dBm · ${d.advertisements} anuncios (${(d.perSecond * 10).toInt() / 10.0}/s)")
-                appendLine("  company ${d.companyId?.let { "0x" + it.toString(16).padStart(4, '0') } ?: "—"} · datos ${d.manufacturerHex.ifEmpty { "—" }}")
-                d.interpretedKg?.let { appendLine("  peso interpretado: $it kg") }
+                append(reportOne(d))
             }
+        }
+
+        /** Report of a single device (its own «Copiar»). */
+        fun reportOne(d: SeenDevice): String = buildString {
+            appendLine("${if (d.looksLikeScale) "[WH-C06?] " else ""}${d.name ?: "(sin nombre)"} · ${d.id}")
+            appendLine("  RSSI ${d.rssi} dBm · ${d.advertisements} anuncios (${(d.perSecond * 10).toInt() / 10.0}/s)")
+            appendLine("  company ${d.companyId?.let { "0x" + it.toString(16).padStart(4, '0') } ?: "—"} · datos ${d.manufacturerHex.ifEmpty { "—" }}")
+            d.interpretedKg?.let { appendLine("  peso interpretado: $it kg") }
         }
 
         private fun ByteArray.toHex() = joinToString(" ") { (it.toInt() and 0xFF).toString(16).padStart(2, '0') }

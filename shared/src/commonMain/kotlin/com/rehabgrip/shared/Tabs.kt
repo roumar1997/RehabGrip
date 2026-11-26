@@ -76,6 +76,9 @@ private fun ProfileTab(container: AppContainer, navigator: Navigator, session: A
             showDeveloperOptions = container.platform.isDebug,
             injury = session.injury,
             maxRows = MaxRecords.mine(data.allMeasurements, data.grips),
+            scaleName = data.scaleName,
+            scaleLocked = data.scaleId != null,
+            simContaminated = data.contaminated,
             friends = MaxRecords.friends(data.allMeasurements, data.grips),
         ),
         onRename = { scope.launch { container.settings.save(com.rehabgrip.core.domain.model.UserProfile(it)) } },
@@ -86,6 +89,8 @@ private fun ProfileTab(container: AppContainer, navigator: Navigator, session: A
         onGrips = { navigator.push(Route.GripLibrary) },
         onEvaluate = { navigator.push(Route.GripEvaluate(it)) },
         onDiagnostics = { navigator.push(Route.Diagnostics) },
+        onForgetScale = { scope.launch { container.forgetScale() } },
+        onSimContaminated = { scope.launch { container.settings.setFlag(SIM_CONTAMINATED_KEY, it) } },
     )
 }
 

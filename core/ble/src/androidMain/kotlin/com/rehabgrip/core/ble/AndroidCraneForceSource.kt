@@ -41,11 +41,17 @@ class AndroidCraneForceSource(context: Context) : ForceSource {
     private var watchdog: Job? = null
     @Volatile private var lastPacketAt = 0L
     private var lastScanStartAt = 0L
+    private var pipeline = ScalePipeline()
+
+    override fun configureLock(lockedId: String?, onSelected: (String, String?) -> Unit) {
+        pipeline = ScalePipeline(DeviceLock(lockedId, onSelected = onSelected))
+    }
 
     private val callback = object : ScanCallback() {
         override fun onScanResult(callbackType: Int, result: ScanResult) {
             val payload = result.scanRecord?.getManufacturerSpecificData(CraneAdvertisementParser.COMPANY_ID) ?: return
-            val reading = CraneAdvertisementParser.parse(payload) ?: return
+            val name = result.scanRecord?.deviceName
+            val reading = pipeline.process(result.device.address, name, result.rssi, payload, SystemClock.elapsedRealtime()) ?: return
             lastPacketAt = SystemClock.elapsedRealtime()
             _status.value = ScaleStatus.RECEIVING
             _readings.tryEmit(reading)

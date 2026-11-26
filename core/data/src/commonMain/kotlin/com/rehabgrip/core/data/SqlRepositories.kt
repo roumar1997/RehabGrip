@@ -111,6 +111,11 @@ class SqlSettingsStore(private val db: RehabGripDatabase) : ProfileRepository {
     fun observeFlag(key: String, default: Boolean): Flow<Boolean> =
         q.selectSetting(key).asFlow().mapToOneOrNull(Dispatchers.IO).map { it?.toBooleanStrictOrNull() ?: default }
 
+    fun observeString(key: String): Flow<String?> =
+        q.selectSetting(key).asFlow().mapToOneOrNull(Dispatchers.IO).map { it?.takeIf { v -> v.isNotBlank() } }
+
+    suspend fun setString(key: String, value: String) = withContext(Dispatchers.IO) { q.upsertSetting(key, value) }
+
     suspend fun setFlag(key: String, value: Boolean) =
         withContext(Dispatchers.IO) { q.upsertSetting(key, value.toString()) }
 

@@ -46,6 +46,11 @@ class IosCraneForceSource : ForceSource {
     private var wantsScan = false
     private var lastPacketAt = 0.0
     private var watchdog: Job? = null
+    private var pipeline = ScalePipeline()
+
+    override fun configureLock(lockedId: String?, onSelected: (String, String?) -> Unit) {
+        pipeline = ScalePipeline(DeviceLock(lockedId, onSelected = onSelected))
+    }
 
     private val delegate = CentralDelegate(
         onState = { poweredOn, unauthorized ->
@@ -55,9 +60,9 @@ class IosCraneForceSource : ForceSource {
                 wantsScan -> scan()
             }
         },
-        onManufacturerData = { bytes ->
-            // Any manufacturer data, with or without the company-ID bytes; no name or service filter.
-            val reading = CraneAdvertisementParser.parseAny(bytes)
+        onManufacturerData = { id, name, rssi, bytes ->
+            // No name or service filter: the lock picks ONE device (peripheral identifier).
+            val reading = pipeline.process(id, name, rssi, bytes, (now() * 1000).toLong())
             if (reading != null) {
                 lastPacketAt = now()
                 _status.value = ScaleStatus.RECEIVING
@@ -108,7 +113,7 @@ class IosCraneForceSource : ForceSource {
 
 private class CentralDelegate(
     private val onState: (poweredOn: Boolean, unauthorized: Boolean) -> Unit,
-    private val onManufacturerData: (ByteArray) -> Unit,
+    private val onManufacturerData: (id: String, name: String?, rssi: Int, bytes: ByteArray) -> Unit,
 ) : NSObject(), CBCentralManagerDelegateProtocol {
 
     override fun centralManagerDidUpdateState(central: CBCentralManager) {
@@ -122,7 +127,8 @@ private class CentralDelegate(
         RSSI: NSNumber,
     ) {
         val data = advertisementData[CBAdvertisementDataManufacturerDataKey] as? NSData ?: return
-        onManufacturerData(data.toByteArray())
+        val name = advertisementData[platform.CoreBluetooth.CBAdvertisementDataLocalNameKey] as? String ?: didDiscoverPeripheral.name
+        onManufacturerData(didDiscoverPeripheral.identifier.UUIDString, name, RSSI.intValue, data.toByteArray())
     }
 }
 

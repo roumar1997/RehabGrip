@@ -49,7 +49,7 @@ internal fun MeasureRoutes(route: Route, container: AppContainer, navigator: Nav
         )
         is Route.Live -> LiveRoute(route, container, navigator, data.simulated)
         is Route.Meter -> MeterRoute(container, navigator, data)
-        is Route.Diagnostics -> DiagnosticsRoute(container, navigator)
+        is Route.Diagnostics -> DiagnosticsRoute(container, navigator, data)
         is Route.SaveSession -> SaveSessionScreen(
             exercise = route.exercise,
             hand = route.hand,
@@ -124,13 +124,15 @@ private fun MeterRoute(container: AppContainer, navigator: Navigator, data: AppD
 }
 
 @Composable
-private fun DiagnosticsRoute(container: AppContainer, navigator: Navigator) {
+private fun DiagnosticsRoute(container: AppContainer, navigator: Navigator, data: AppData) {
     val scope = rememberCoroutineScope()
     val scanner = remember { container.platform.advertisementScanner() }
     var allowed by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
     androidx.compose.runtime.LaunchedEffect(Unit) { allowed = container.platform.ensureBluetoothPermission() }
     DisposableEffect(scanner) { onDispose { scanner.stop() } }
-    if (allowed) com.rehabgrip.feature.measure.DiagnosticsScreen(scanner) { navigator.pop() } else {
+    if (allowed) com.rehabgrip.feature.measure.DiagnosticsScreen(
+        scanner, data.scaleId, onUse = { id, name -> scope.launch { container.useScale(id, name) } },
+    ) { navigator.pop() } else {
         com.rehabgrip.core.designsystem.components.RgTopBar("Diagnóstico Bluetooth", onBack = { navigator.pop() })
     }
 }

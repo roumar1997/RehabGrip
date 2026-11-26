@@ -74,6 +74,10 @@ data class ProfileUiState(
     val injury: Injury = Injury.NONE,
     /** Each grip of the library with the evaluated max of every hand. */
     val maxRows: List<MaxRow> = emptyList(),
+    /** Name of the scale this phone is locked to (null = auto). */
+    val scaleName: String? = null,
+    val scaleLocked: Boolean = false,
+    val simContaminated: Boolean = false,
     /** Other people's records, kept apart from mine. */
     val friends: List<FriendMaxes> = emptyList(),
 )
@@ -90,6 +94,8 @@ fun ProfileScreen(
     onGrips: () -> Unit = {},
     onEvaluate: (GripSpec) -> Unit = {},
     onDiagnostics: () -> Unit = {},
+    onForgetScale: () -> Unit = {},
+    onSimContaminated: (Boolean) -> Unit = {},
 ) {
     var dialog by rememberSaveable { mutableStateOf<String?>(null) }
     Column(Modifier.fillMaxSize()) {
@@ -136,6 +142,10 @@ fun ProfileScreen(
                 Option(Icons.Rounded.Notifications, "Recordatorios", onReminders)
                 HorizontalDivider(color = RgColors.Outline)
                 Option(Icons.Rounded.Bluetooth, "Báscula · diagnóstico Bluetooth", onDiagnostics)
+                if (state.scaleLocked) {
+                    HorizontalDivider(color = RgColors.Outline)
+                    Option(Icons.Rounded.Bluetooth, "Olvidar báscula (${state.scaleName ?: "elegida"})", onForgetScale)
+                }
                 HorizontalDivider(color = RgColors.Outline)
                 Option(Icons.Rounded.Lightbulb, "Información y consejos") { dialog = DIALOG_TIPS }
                 HorizontalDivider(color = RgColors.Outline)
@@ -151,6 +161,14 @@ fun ProfileScreen(
                             Text("Solo pruebas: curva realista sin Bluetooth", style = MaterialTheme.typography.bodySmall, color = RgColors.TextSecondary)
                         }
                         Switch(state.simulatedScale, onSimulatedScale, colors = SwitchDefaults.colors(checkedTrackColor = RgColors.Primary))
+                    }
+                    HorizontalDivider(color = RgColors.Outline)
+                    Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text("Simulada contaminada", style = MaterialTheme.typography.titleSmall, color = RgColors.Navy)
+                            Text("Mezcla otro dispositivo (87 kg) y picos para probar el filtro", style = MaterialTheme.typography.bodySmall, color = RgColors.TextSecondary)
+                        }
+                        Switch(state.simContaminated, onSimContaminated, colors = SwitchDefaults.colors(checkedTrackColor = RgColors.Primary))
                     }
                     HorizontalDivider(color = RgColors.Outline)
                     Option(Icons.Rounded.DataObject, "Cargar datos de ejemplo (3 semanas)") { dialog = DIALOG_SAMPLE }

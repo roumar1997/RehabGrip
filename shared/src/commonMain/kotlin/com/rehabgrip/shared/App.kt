@@ -44,6 +44,7 @@ fun App(container: AppContainer, navigator: Navigator) {
         val gate by gateFlow.collectAsState(Loading)
         val scope = rememberCoroutineScope()
         LaunchedEffect(Unit) {
+            container.loadScale()
             container.seedExampleWorkout()
             container.platform.reminderScheduler.reschedule(container.reminders.all())
         }
@@ -110,4 +111,5 @@ private fun BottomBar(selected: Tab, onSelect: (Tab) -> Unit) {
     }
 }
 
+internal const val SIM_CONTAMINATED_KEY = "sim_contaminated"
 internal const val SIM_KEY = com.rehabgrip.core.data.SqlSettingsStore.KEY_SIMULATED_SCALE

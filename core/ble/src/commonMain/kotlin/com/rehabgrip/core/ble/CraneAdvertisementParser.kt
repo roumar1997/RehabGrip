@@ -42,6 +42,28 @@ object CraneAdvertisementParser {
         return parse(data)
     }
 
+    /** Payload without the company-ID bytes, whatever the platform delivered. */
+    fun payloadOf(data: ByteArray): ByteArray =
+        if (data.size >= 2 && data[0].toInt() == 0x00 && data[1].toInt() == 0x01) data.copyOfRange(2, data.size) else data
+
+    /** The 02 03 signature (18-byte frames) that the WH-C06 uses, as hang-ten does. */
+    fun hasSignature(payload: ByteArray): Boolean =
+        payload.size >= 17 && payload[0].toInt() == 0x02 && payload[1].toInt() == 0x03
+
+    fun looksLikeScale(name: String?, payload: ByteArray?): Boolean =
+        (name != null && listOf("WH-C06", "Crane", "IF_B7").any { name.contains(it, ignoreCase = true) }) ||
+            (payload != null && hasSignature(payload))
+
+    /** Builds a frame like the scale's (tests and the simulator). */
+    fun encode(kg: Double, withCompanyId: Boolean = false): ByteArray {
+        val raw = (kg * 100).toInt().coerceIn(0, 0xFFFF)
+        val p = ByteArray(18)
+        p[0] = 0x02; p[1] = 0x03
+        p[10] = (raw shr 8).toByte(); p[11] = (raw and 0xFF).toByte()
+        p[14] = 0x01
+        return if (withCompanyId) byteArrayOf(0x00, 0x01) + p else p
+    }
+
     /** Splits iOS-style manufacturer data (company ID little-endian in the first 2 bytes). */
     fun stripCompanyId(fullManufacturerData: ByteArray): ByteArray? {
         if (fullManufacturerData.size < 2) return null
