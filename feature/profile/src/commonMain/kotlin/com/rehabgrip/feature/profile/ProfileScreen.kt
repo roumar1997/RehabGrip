@@ -77,7 +77,8 @@ data class ProfileUiState(
     /** Name of the scale this phone is locked to (null = auto). */
     val scaleName: String? = null,
     val scaleLocked: Boolean = false,
-    val scaleCustomName: String? = null,
+    val scales: List<com.rehabgrip.core.ble.SavedScale> = emptyList(),
+    val activeScaleId: String? = null,
     val simContaminated: Boolean = false,
     /** Other people's records, kept apart from mine. */
     val friends: List<FriendMaxes> = emptyList(),
@@ -95,8 +96,9 @@ fun ProfileScreen(
     onGrips: () -> Unit = {},
     onEvaluate: (GripSpec) -> Unit = {},
     onDiagnostics: () -> Unit = {},
-    onForgetScale: () -> Unit = {},
-    onScaleName: (String) -> Unit = {},
+    onForgetScale: (String) -> Unit = {},
+    onRenameScale: (String, String) -> Unit = { _, _ -> },
+    onUseScale: (com.rehabgrip.core.ble.SavedScale) -> Unit = {},
     onSimContaminated: (Boolean) -> Unit = {},
 ) {
     var dialog by rememberSaveable { mutableStateOf<String?>(null) }
@@ -145,11 +147,7 @@ fun ProfileScreen(
                 HorizontalDivider(color = RgColors.Outline)
                 Option(Icons.Rounded.Bluetooth, "Báscula · diagnóstico Bluetooth", onDiagnostics)
                 HorizontalDivider(color = RgColors.Outline)
-                Option(Icons.Rounded.Badge, "Nombre de mi báscula (${state.scaleCustomName ?: "Báscula " + (state.scaleName ?: "IF_B7")})") { dialog = DIALOG_SCALE_NAME }
-                if (state.scaleLocked) {
-                    HorizontalDivider(color = RgColors.Outline)
-                    Option(Icons.Rounded.Bluetooth, "Olvidar báscula (${state.scaleName ?: "elegida"})", onForgetScale)
-                }
+                Option(Icons.Rounded.Badge, "Mis básculas (${state.scales.size})") { dialog = DIALOG_SCALES }
                 HorizontalDivider(color = RgColors.Outline)
                 Option(Icons.Rounded.Lightbulb, "Información y consejos") { dialog = DIALOG_TIPS }
                 HorizontalDivider(color = RgColors.Outline)
@@ -183,7 +181,7 @@ fun ProfileScreen(
     }
     when (dialog) {
         DIALOG_INJURY -> InjuryDialog(state.injury, { dialog = null }) { onInjury(it); dialog = null }
-        DIALOG_SCALE_NAME -> RenameDialog(state.scaleCustomName ?: "Báscula " + (state.scaleName ?: "IF_B7"), { dialog = null }, "Nombre de tu báscula") { onScaleName(it); dialog = null }
+        DIALOG_SCALES -> ScalesDialog(state.scales, state.activeScaleId, { dialog = null }, onUseScale, onRenameScale, onForgetScale)
         DIALOG_NAME -> RenameDialog(state.name, { dialog = null }) { onRename(it); dialog = null }
         DIALOG_TIPS -> InfoDialog("Información y consejos", TIPS) { dialog = null }
         DIALOG_ABOUT -> InfoDialog("Acerca de Rehagrip", ABOUT) { dialog = null }
@@ -241,7 +239,7 @@ private fun InfoDialog(title: String, body: String, onDismiss: () -> Unit) = Ale
 )
 
 private const val DIALOG_NAME = "name"
-private const val DIALOG_SCALE_NAME = "scale_name"
+private const val DIALOG_SCALES = "scales"
 private const val DIALOG_TIPS = "tips"
 private const val DIALOG_ABOUT = "about"
 private const val DIALOG_SAMPLE = "sample"

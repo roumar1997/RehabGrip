@@ -40,7 +40,8 @@ class IosCraneForceSource : ForceSource {
     override val name = "Crane Scale WH-C06"
     private val _status = MutableStateFlow(ScaleStatus.IDLE)
     override val status: StateFlow<ScaleStatus> = _status.asStateFlow()
-    private val _readings = MutableSharedFlow<ScaleReading>(extraBufferCapacity = 64)
+    // 256 slots, oldest dropped: a busy UI must not lose the newest samples
+    private val _readings = MutableSharedFlow<ScaleReading>(extraBufferCapacity = 256, onBufferOverflow = kotlinx.coroutines.channels.BufferOverflow.DROP_OLDEST)
     override val readings: SharedFlow<ScaleReading> = _readings.asSharedFlow()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var wantsScan = false
@@ -70,10 +71,13 @@ class IosCraneForceSource : ForceSource {
             }
         },
     )
-    private val manager = CBCentralManager(delegate = delegate, queue = null)
+    // The delegate runs on its own serial queue (not the main one), so Compose frames cannot delay or batch the callbacks.
+    private val bleQueue = platform.darwin.dispatch_queue_create("com.rehabgrip.ble.scan", null)
+    private val manager = CBCentralManager(delegate = delegate, queue = bleQueue)
 
     override fun start() {
         wantsScan = true
+        lastPacketAt = now() // the watchdog must not restart the scan before the first packet is overdue
         if (manager.state == CBManagerStatePoweredOn) scan()
         watchdog?.cancel()
         watchdog = scope.launch {

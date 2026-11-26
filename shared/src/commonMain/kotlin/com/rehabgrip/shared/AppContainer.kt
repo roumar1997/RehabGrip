@@ -85,13 +85,24 @@ class AppContainer(val platform: PlatformServices) {
         lockedScaleId = id
         settings.setString(KEY_SCALE_ID, id)
         settings.setString(KEY_SCALE_NAME, name.orEmpty())
+        saveBook(com.rehabgrip.core.ble.ScaleBook.upsert(loadBook(), id, name))
     }
 
-    suspend fun forgetScale() {
-        lockedScaleId = null
-        settings.setString(KEY_SCALE_ID, "")
-        settings.setString(KEY_SCALE_NAME, "")
+    /** Forgets one scale; if it was the active one the lock is released (auto-selection again). */
+    suspend fun forgetScale(id: String) {
+        saveBook(com.rehabgrip.core.ble.ScaleBook.remove(loadBook(), id))
+        if (lockedScaleId == id) {
+            lockedScaleId = null
+            settings.setString(KEY_SCALE_ID, "")
+            settings.setString(KEY_SCALE_NAME, "")
+        }
     }
+
+    suspend fun renameScale(id: String, name: String) = saveBook(com.rehabgrip.core.ble.ScaleBook.rename(loadBook(), id, name))
+
+    private suspend fun loadBook() = com.rehabgrip.core.ble.ScaleBook.decode(settings.observeString(KEY_SCALES).first())
+
+    private suspend fun saveBook(list: List<com.rehabgrip.core.ble.SavedScale>) = settings.setString(KEY_SCALES, com.rehabgrip.core.ble.ScaleBook.encode(list))
 
     fun export(list: List<Measurement>) =
         platform.exportSharer.share("rehabgrip-${Clock.System.now().toEpochMilliseconds()}.csv", csv.export(list))
@@ -153,6 +164,6 @@ class AppContainer(val platform: PlatformServices) {
         const val KEY_SEEDED_GRIP_SESSION = "seeded_grip_session"
         const val KEY_SCALE_ID = "scale_device_id"
         const val KEY_SCALE_NAME = "scale_device_name"
-        const val KEY_SCALE_CUSTOM_NAME = "scale_custom_name"
+        const val KEY_SCALES = "scales_book"
     }
 }

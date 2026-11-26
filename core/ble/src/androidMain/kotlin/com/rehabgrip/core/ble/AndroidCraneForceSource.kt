@@ -35,7 +35,7 @@ class AndroidCraneForceSource(context: Context) : ForceSource {
     private val adapter = context.getSystemService(BluetoothManager::class.java)?.adapter
     private val _status = MutableStateFlow(ScaleStatus.IDLE)
     override val status: StateFlow<ScaleStatus> = _status.asStateFlow()
-    private val _readings = MutableSharedFlow<ScaleReading>(extraBufferCapacity = 64)
+    private val _readings = MutableSharedFlow<ScaleReading>(extraBufferCapacity = 256, onBufferOverflow = kotlinx.coroutines.channels.BufferOverflow.DROP_OLDEST)
     override val readings: SharedFlow<ScaleReading> = _readings.asSharedFlow()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var watchdog: Job? = null

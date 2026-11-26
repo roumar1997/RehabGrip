@@ -40,7 +40,8 @@ class IosAdvertisementScanner : AdvertisementScanner {
         },
         onAd = { _ads.tryEmit(it) },
     )
-    private val manager = CBCentralManager(delegate = delegate, queue = null)
+    private val bleQueue = platform.darwin.dispatch_queue_create("com.rehabgrip.ble.diagnostics", null)
+    private val manager = CBCentralManager(delegate = delegate, queue = bleQueue)
 
     override fun start() {
         wantsScan = true

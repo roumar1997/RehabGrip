@@ -81,7 +81,8 @@ private fun ProfileTab(container: AppContainer, navigator: Navigator, session: A
             injury = session.injury,
             maxRows = MaxRecords.mine(data.allMeasurements, data.grips),
             scaleName = data.scaleName,
-            scaleCustomName = data.scaleCustomName,
+            scales = data.scales,
+            activeScaleId = data.scaleId,
             scaleLocked = data.scaleId != null,
             simContaminated = data.contaminated,
             friends = MaxRecords.friends(data.allMeasurements, data.grips),
@@ -94,8 +95,9 @@ private fun ProfileTab(container: AppContainer, navigator: Navigator, session: A
         onGrips = { navigator.push(Route.GripLibrary) },
         onEvaluate = { navigator.push(Route.GripEvaluate(it)) },
         onDiagnostics = { navigator.push(Route.Diagnostics) },
-        onScaleName = { scope.launch { container.settings.setString(AppContainer.KEY_SCALE_CUSTOM_NAME, it) } },
-        onForgetScale = { scope.launch { container.forgetScale() } },
+        onRenameScale = { id, name -> scope.launch { container.renameScale(id, name) } },
+        onUseScale = { s -> scope.launch { container.useScale(s.id, s.deviceName) } },
+        onForgetScale = { id -> scope.launch { container.forgetScale(id) } },
         onSimContaminated = { scope.launch { container.settings.setFlag(SIM_CONTAMINATED_KEY, it) } },
     )
 }
