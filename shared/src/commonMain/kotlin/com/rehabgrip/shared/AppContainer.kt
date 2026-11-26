@@ -64,10 +64,10 @@ class AppContainer(val platform: PlatformServices) {
     private val background = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.Default)
 
     /** The one scale this phone listens to (iOS UUID / Android MAC); null = auto-select the strongest. */
-    @Volatile var lockedScaleId: String? = null
+    var lockedScaleId: String? = null
 
     /** Debug: the simulated scale also mixes in frames of another device and spikes. */
-    @Volatile var contaminatedSim: Boolean = false
+    var contaminatedSim: Boolean = false
 
     fun forceSource(simulated: Boolean): ForceSource =
         if (simulated) SimulatedForceSource(contaminated = contaminatedSim)

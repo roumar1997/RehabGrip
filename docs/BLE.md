@@ -61,3 +61,17 @@ la opción por defecto en debug, para poder probar en el emulador.
   iOS `IosAdvertisementScanner`, duplicados permitidos) y lista nombre, RSSI, company ID, bytes en hex, anuncios/s;
   marca la WH-C06 (company 0x0100 o nombre WH-C06/Crane/IF_B7) y el peso interpretado. «Copiar informe» lo deja en
   el portapapeles. Probado en emulador solo la pantalla (sin Bluetooth: 0 dispositivos).
+
+## Ronda 5: una sola báscula
+- Captura real (iPhone): `IF_B7`, company 0x0100, payload (sin los 2 bytes) `02 03 11 2a c0 19 11 22 7f 01 04 92 01 f4 01 4e db`;
+  bytes 10-11 = 0x0492 = 11,70 kg, byte 14 = 0x01 (kg). El decodificador era correcto.
+- Causa de los picos de 87/97,9 kg: se aceptaba cualquier anuncio con company 0x0100 (otro aparato cercano).
+- `DeviceLock`: solo se escucha UN dispositivo (iOS `peripheral.identifier` / Android MAC). Sin id guardado, tras 1,5 s
+  elige el de mayor RSSI que parezca la báscula (nombre IF_B7/WH-C06/Crane o firma 02 03 con payload >= 17 bytes;
+  si no hay, el más fuerte con company 0x0100 que decodifique) y lo guarda en ajustes. Diagnóstico: «Usar esta
+  báscula»; Perfil: «Olvidar báscula».
+- `JumpFilter`: una lectura que salta más de 40 kg en menos de 300 ms se retiene; solo vale si la siguiente la confirma.
+- `ScalePipeline` (bloqueo + decodificación + filtro) lo comparten Android, iOS y el simulador. Perfil (debug) →
+  «Simulada contaminada» mezcla otro dispositivo (87 kg) y picos de 97,9 kg: no llegan a la gráfica.
+- Diagnóstico: «Copiar» por dispositivo, «Copiar todo», «Grabar» 30 s (payloads distintos, veces, peso, saltos).
+- La señal («Báscula IF_B7 · -55 dBm · N lecturas/s») sale de `SignalMonitor` en todas las pantallas con báscula.
