@@ -3,24 +3,20 @@ package com.rehabgrip.feature.history
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.DeleteOutline
-import androidx.compose.material.icons.rounded.Bluetooth
-import androidx.compose.material.icons.rounded.EditNote
+import androidx.compose.material.icons.rounded.ExpandLess
+import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material.icons.rounded.FilterList
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.IosShare
@@ -48,33 +44,34 @@ import com.rehabgrip.core.designsystem.components.RgSegmented
 import com.rehabgrip.core.designsystem.components.RgTopBar
 import com.rehabgrip.core.designsystem.components.clickableNoRipple
 import com.rehabgrip.core.designsystem.components.formatKg
-import com.rehabgrip.core.designsystem.components.discomfortColor
-import com.rehabgrip.core.domain.workout.WorkoutResultEntry
+import com.rehabgrip.core.designsystem.components.formatRecordDay
 import com.rehabgrip.core.designsystem.theme.RgColors
+import com.rehabgrip.core.domain.grip.GripKey
+import com.rehabgrip.core.domain.grip.HistoryGroup
+import com.rehabgrip.core.domain.grip.HistoryGroups
 import com.rehabgrip.core.domain.model.Exercise
 import com.rehabgrip.core.domain.model.Hand
 import com.rehabgrip.core.domain.model.Measurement
-import com.rehabgrip.core.domain.model.MeasurementSource
+import com.rehabgrip.core.domain.workout.GripSpec
+import com.rehabgrip.core.domain.workout.WorkoutResultEntry
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
-import com.rehabgrip.core.domain.workout.GripSpec
 import kotlinx.datetime.toLocalDateTime
 
 private const val DYNAMOMETER_FILTER = -1L
 
-/** Library grips match by id (or, for predefined ones, by their old exercise); the dynamometer by exercise. */
-private fun matchesFilter(m: Measurement, filter: Long?, grip: GripSpec?): Boolean = when {
-    filter == null -> true
-    filter == DYNAMOMETER_FILTER -> m.exercise == Exercise.DYNAMOMETER
-    grip != null -> grip.matches(m)
-    else -> true
+/** Same key as Home, Evolution and «Mis máximos»: library grip by id (or its predefined exercise), or the dynamometer. */
+private fun matchesFilter(m: Measurement, filter: Long?, library: List<GripSpec>): Boolean = when (filter) {
+    null -> true
+    DYNAMOMETER_FILTER -> GripKey.of(m, library) == GripKey.Plain(Exercise.DYNAMOMETER)
+    else -> GripKey.of(m, library) == GripKey.Library(filter)
 }
 
 private enum class HandFilter(val hand: Hand?, val label: String) {
     ALL(null, "Todas"), RIGHT(Hand.RIGHT, "Derecha"), LEFT(Hand.LEFT, "Izquierda")
 }
 
-/** "Historial": every record, newest first, filterable and exportable to CSV. */
+/** "Historial": one row per day and grip with both hands, newest first, filterable and exportable to CSV. */
 @Composable
 fun HistoryScreen(
     measurements: List<Measurement>,
@@ -86,18 +83,20 @@ fun HistoryScreen(
     onChangeWorkoutDate: (Long, Long) -> Unit = { _, _ -> },
     grips: List<GripSpec> = emptyList(),
 ) {
-    fun nameOf(m: Measurement) = m.gripId?.let { id -> grips.firstOrNull { it.id == id } }?.label ?: Labels.exercise(m.exercise)
     var showWorkouts by rememberSaveable { mutableStateOf(false) }
     var handFilter by rememberSaveable { mutableStateOf(HandFilter.ALL) }
     // null = all; otherwise a library grip id, or DYNAMOMETER_FILTER.
     var gripFilter by rememberSaveable { mutableStateOf<Long?>(null) }
-    val filterGrip = grips.firstOrNull { it.id == gripFilter }
     var showFilters by rememberSaveable { mutableStateOf(true) }
     var toDelete by remember { mutableStateOf<Measurement?>(null) }
-    var editing by remember { mutableStateOf<Measurement?>(null) }
+    var editingRecord by remember { mutableStateOf<Measurement?>(null) }
+    var editingGroup by remember { mutableStateOf<HistoryGroup?>(null) }
     val filtered = measurements.filter {
-        (handFilter.hand == null || it.hand == handFilter.hand) && matchesFilter(it, gripFilter, filterGrip)
-    }.sortedByDescending { it.epochMillis }
+        (handFilter.hand == null || it.hand == handFilter.hand) && matchesFilter(it, gripFilter, grips)
+    }
+    val plainName = { e: Exercise -> Labels.exercise(e) }
+    val groups = remember(filtered, grips) { HistoryGroups.build(filtered, grips, plainName) }
+    fun nameOf(m: Measurement) = GripKey.label(m, grips, plainName)
 
     Column(Modifier.fillMaxSize()) {
         RgTopBar("Historial", leadingIcon = Icons.Rounded.History) {
@@ -128,17 +127,22 @@ fun HistoryScreen(
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            if (filtered.isEmpty()) {
+            if (groups.isEmpty()) {
                 item { Text("Todavía no hay registros con este filtro", color = RgColors.TextSecondary, style = MaterialTheme.typography.bodyMedium) }
             }
-            items(filtered, key = { it.id }) { m -> HistoryRow(m, nameOf(m), { editing = m }) { toDelete = m } }
+            items(groups, key = { it.day.toString() + it.key.toString() }) { g ->
+                GroupRow(g, onEditGroup = { editingGroup = g }, onEditRecord = { editingRecord = it }, onDeleteRecord = { toDelete = it })
+            }
         }
         RgSecondaryButton(
             "Exportar datos (CSV)", { onExport(filtered) },
             Modifier.padding(horizontal = 16.dp, vertical = 10.dp), icon = Icons.Rounded.IosShare,
         )
     }
-    editing?.let { m -> EditRecordDialog(m, nameOf(m), { editing = null }) { onEdit(it); editing = null } }
+    editingRecord?.let { m -> EditRecordDialog(m, nameOf(m), { editingRecord = null }) { onEdit(it); editingRecord = null } }
+    editingGroup?.let { g ->
+        EditGroupDialog(g, { editingGroup = null }, onEdit = onEdit, onDelete = onDelete)
+    }
     toDelete?.let { m ->
         AlertDialog(
             onDismissRequest = { toDelete = null },
@@ -150,6 +154,48 @@ fun HistoryScreen(
     }
 }
 
+/** «Extensión · 25/11 — Dcha 13,0 · Izda 31,5 kg»; expandable when a hand has several records that day. */
+@Composable
+private fun GroupRow(g: HistoryGroup, onEditGroup: () -> Unit, onEditRecord: (Measurement) -> Unit, onDeleteRecord: (Measurement) -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    val several = g.right.records.size > 1 || g.left.records.size > 1
+    RgCard(Modifier.fillMaxWidth(), onClick = onEditGroup, padding = PaddingValues(start = 14.dp, top = 10.dp, bottom = 10.dp, end = 4.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(g.label, style = MaterialTheme.typography.titleSmall, color = RgColors.Navy, maxLines = 2)
+                Text(formatRecordDay(g.latest), style = MaterialTheme.typography.bodySmall, color = RgColors.TextSecondary)
+                Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                    HandValue("Dcha", g.right.best?.kg, RgColors.RightHand)
+                    HandValue("Izda", g.left.best?.kg, RgColors.LeftHand)
+                }
+            }
+            if (several) IconButton(onClick = { open = !open }) {
+                Icon(if (open) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore, "Ver todos los del día", tint = RgColors.TextSecondary)
+            }
+        }
+        if (open) g.all.sortedByDescending { it.epochMillis }.forEach { m ->
+            val dt = Instant.fromEpochMilliseconds(m.epochMillis).toLocalDateTime(TimeZone.currentSystemDefault())
+            Row(Modifier.fillMaxWidth().clickableNoRipple { onEditRecord(m) }, verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    "${dt.hour.toString().padStart(2, '0')}:${dt.minute.toString().padStart(2, '0')} · ${Labels.hand(m.hand)} · ${formatKg(m.kg)} kg" +
+                        (if (m.discomforts.isNotEmpty()) " · " + m.discomforts.joinToString { "${it.zone} ${it.level}/10" } else ""),
+                    style = MaterialTheme.typography.bodySmall, color = RgColors.Navy, modifier = Modifier.weight(1f).padding(vertical = 6.dp),
+                )
+                IconButton(onClick = { onDeleteRecord(m) }) { Icon(Icons.Outlined.DeleteOutline, "Borrar", tint = RgColors.TextSecondary) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun HandValue(label: String, kg: Double?, color: Color) {
+    Text(
+        "$label ${kg?.let { formatKg(it) + " kg" } ?: "—"}",
+        style = MaterialTheme.typography.titleSmall, color = RgColors.Navy,
+        modifier = Modifier.clip(CircleShape).background(color.copy(alpha = 0.16f)).padding(horizontal = 10.dp, vertical = 4.dp),
+    )
+}
+
 @Composable
 private fun Pill(text: String, selected: Boolean, onClick: () -> Unit) = Text(
     text,
@@ -158,33 +204,3 @@ private fun Pill(text: String, selected: Boolean, onClick: () -> Unit) = Text(
     modifier = Modifier.clip(CircleShape).background(if (selected) RgColors.Navy else RgColors.Surface)
         .clickableNoRipple(onClick).padding(horizontal = 14.dp, vertical = 8.dp),
 )
-
-@Composable
-private fun HistoryRow(m: Measurement, name: String, onEdit: () -> Unit, onDelete: () -> Unit) {
-    val dt = Instant.fromEpochMilliseconds(m.epochMillis).toLocalDateTime(TimeZone.currentSystemDefault())
-    val date = "${dt.dayOfMonth.toString().padStart(2, '0')}/${dt.monthNumber.toString().padStart(2, '0')}/${dt.year}"
-    val handColor = if (m.hand == Hand.RIGHT) RgColors.RightHand else RgColors.LeftHand
-    RgCard(Modifier.fillMaxWidth(), onClick = onEdit, padding = PaddingValues(start = 14.dp, top = 10.dp, bottom = 10.dp, end = 4.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(12.dp).clip(CircleShape).background(handColor))
-            Spacer(Modifier.width(12.dp))
-            Column(Modifier.weight(1f)) {
-                Text(name, style = MaterialTheme.typography.titleSmall, color = RgColors.Navy)
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("$date · ${Labels.hand(m.hand)}", style = MaterialTheme.typography.bodySmall, color = RgColors.TextSecondary)
-                    Spacer(Modifier.width(6.dp))
-                    Icon(
-                        if (m.source == MeasurementSource.SCALE) Icons.Rounded.Bluetooth else Icons.Rounded.EditNote,
-                        null, tint = RgColors.TextSecondary, modifier = Modifier.size(14.dp),
-                    )
-                }
-                if (m.note.isNotBlank()) Text(m.note, style = MaterialTheme.typography.bodySmall, color = RgColors.TextSecondary)
-                m.discomforts.forEach { d ->
-                    Text("• ${d.zone}: ${d.level}/10", style = MaterialTheme.typography.bodySmall, color = discomfortColor(d.level))
-                }
-            }
-            Text("${formatKg(m.kg)} kg", style = MaterialTheme.typography.titleMedium, color = RgColors.Navy)
-            IconButton(onClick = onDelete) { Icon(Icons.Outlined.DeleteOutline, "Borrar", tint = RgColors.TextSecondary) }
-        }
-    }
-}

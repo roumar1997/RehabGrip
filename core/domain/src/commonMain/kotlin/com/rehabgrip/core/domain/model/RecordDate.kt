@@ -33,6 +33,10 @@ object RecordDate {
         return resolve(withTimeOf(day, nowMillis, tz), nowMillis)
     }
 
+    /** [epochMillis] moved to the calendar day of [target], keeping its own time of day. */
+    fun moveToDayOf(epochMillis: Long, target: Long, tz: TimeZone = TimeZone.currentSystemDefault()): Long =
+        withTimeOf(day(target, tz), epochMillis, tz)
+
     fun day(epochMillis: Long, tz: TimeZone = TimeZone.currentSystemDefault()): LocalDate =
         Instant.fromEpochMilliseconds(epochMillis).toLocalDateTime(tz).date
 
