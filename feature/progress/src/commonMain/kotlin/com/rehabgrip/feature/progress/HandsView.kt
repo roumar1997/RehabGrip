@@ -34,19 +34,17 @@ import com.rehabgrip.core.designsystem.chart.GripPointUi
 import com.rehabgrip.core.designsystem.components.GripChip
 import com.rehabgrip.core.designsystem.components.Labels
 import com.rehabgrip.core.designsystem.components.RgCard
-import com.rehabgrip.core.designsystem.components.RgSegmented
 import com.rehabgrip.core.designsystem.components.formatKg
 import com.rehabgrip.core.designsystem.theme.RgColors
 import com.rehabgrip.core.domain.model.Hand
 import com.rehabgrip.core.domain.model.Injury
-import com.rehabgrip.core.domain.progress.ChartMode
 import com.rehabgrip.core.domain.progress.DayAxis
 import kotlinx.datetime.LocalDate
 
 private fun LocalDate.short() = "$dayOfMonth/$monthNumber"
 
-/** The two hand lines of [p] for the chart; [index] of [count] drives the dodge. */
-internal fun handLines(p: Picked, axis: DayAxis, index: Int, count: Int): List<GripLineUi> =
+/** The two hand lines of [p] for the chart. */
+internal fun handLines(p: Picked, axis: DayAxis): List<GripLineUi> =
     listOf(Hand.RIGHT, Hand.LEFT).mapNotNull { hand ->
         val pts = p.summary.of(hand).points
         if (pts.isEmpty()) null
@@ -54,7 +52,6 @@ internal fun handLines(p: Picked, axis: DayAxis, index: Int, count: Int): List<G
             code = p.look.code, gripName = p.name, handName = Labels.hand(hand), right = hand == Hand.RIGHT,
             base = p.look.color, tint = p.look.tint, dark = p.look.dark, onBase = p.look.onBase,
             points = pts.map { GripPointUi(axis.fraction(it.date), it.kg.toFloat(), it.date.short()) },
-            gripIndex = index, gripCount = count,
         )
     }
 
@@ -72,67 +69,45 @@ private fun PointDialog(line: GripLineUi, point: GripPointUi, onDismiss: () -> U
     confirmButton = { TextButton(onClick = onDismiss) { Text("Cerrar") } },
 )
 
-/** «Por mano»: lettered markers per grip and hand, overlaid in one chart or one chart per grip. */
+/** «Por mano»: one card per selected grip, each with its own chart (kilos in pills, scrolls when there are many days). */
 @Composable
-internal fun ByHandView(picked: List<Picked>, injury: Injury, mode: ChartMode, onMode: (ChartMode) -> Unit, nowMillis: Long) {
+internal fun ByHandView(picked: List<Picked>, injury: Injury, nowMillis: Long) {
     var tapped by remember { mutableStateOf<Pair<GripLineUi, GripPointUi>?>(null) }
-    val shown = if (mode == ChartMode.OVERLAID) picked.take(com.rehabgrip.core.domain.progress.ChartModeRules.MAX_OVERLAID) else picked
-    val axis = axisOf(shown, nowMillis)
+    val axis = axisOf(picked, nowMillis)
     RgCard(Modifier.fillMaxWidth()) {
         Text("Evolución por mano", style = MaterialTheme.typography.titleMedium, color = RgColors.Navy)
-        RgSegmented(
-            ChartMode.entries, mode, { if (it == ChartMode.OVERLAID) "Superpuestas" else "Separadas" }, onMode,
-            Modifier.padding(vertical = 8.dp), colorFor = { RgColors.Navy },
-        )
-        if (shown.isEmpty()) {
-            Text("Elige al menos un agarre", style = MaterialTheme.typography.bodyMedium, color = RgColors.TextSecondary)
+        if (picked.isEmpty()) {
+            Text("Elige al menos un agarre", style = MaterialTheme.typography.bodyMedium, color = RgColors.TextSecondary, modifier = Modifier.padding(top = 6.dp))
         } else if (axis == null) {
             Box(Modifier.fillMaxWidth().height(180.dp), contentAlignment = Alignment.Center) {
                 Text("Sin registros en este periodo", color = RgColors.TextSecondary, style = MaterialTheme.typography.bodyMedium)
             }
-        } else if (mode == ChartMode.OVERLAID) {
-            GripChart(
-                shown.flatMapIndexed { i, p -> handLines(p, axis, i, shown.size) }, ticksOf(axis),
-                Modifier.fillMaxWidth().height(300.dp), labelMode = ChartLabelMode.ENDS, lettered = true, onPointTap = { l, p -> tapped = l to p },
-            )
-            Legend(shown)
-        }
-        if (axis != null && shown.isNotEmpty()) {
+        } else {
             Text(
                 "Círculo lleno y línea continua = derecha · círculo claro y línea discontinua = izquierda",
                 style = MaterialTheme.typography.labelSmall, color = RgColors.TextSecondary, modifier = Modifier.padding(top = 6.dp),
             )
-            if (hasSingleDay(shown.flatMap { listOf(it.summary.right.points, it.summary.left.points) })) OneDayText()
         }
     }
-    if (mode == ChartMode.SEPARATE && axis != null) shown.forEach { p ->
+    if (axis != null) picked.forEach { p ->
         RgCard(Modifier.fillMaxWidth()) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("${p.look.code} · ${p.name}", style = MaterialTheme.typography.titleSmall, color = RgColors.Navy, modifier = Modifier.weight(1f), maxLines = 2)
                 Box(Modifier.padding(start = 8.dp).size(12.dp).clip(CircleShape).background(p.look.color))
             }
-            val lines = handLines(p, axis, 0, 1)
+            val lines = handLines(p, axis)
             if (lines.isEmpty()) Text("Sin registros en este periodo", color = RgColors.TextSecondary, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(vertical = 8.dp))
-            else GripChart(lines, ticksOf(axis), Modifier.fillMaxWidth().height(240.dp), onPointTap = { l, pt -> tapped = l to pt })
-        }
-    }
-    shown.forEach { ComparisonCard(it.summary, injury, look = it.look, showSeries = false) }
-    tapped?.let { (l, p) -> PointDialog(l, p) { tapped = null } }
-}
-
-@Composable
-private fun Legend(picked: List<Picked>) {
-    Column(Modifier.padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        picked.forEach { p ->
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                GripBadges(p.look)
-                Text(p.name, style = MaterialTheme.typography.bodySmall, color = RgColors.Navy, modifier = Modifier.padding(start = 8.dp), maxLines = 2)
+            else {
+                GripChart(lines, ticksOf(axis), Modifier.fillMaxWidth().height(240.dp), onPointTap = { l, pt -> tapped = l to pt })
+                if (hasSingleDay(listOf(p.summary.right.points, p.summary.left.points))) OneDayText()
             }
         }
     }
+    picked.forEach { ComparisonCard(it.summary, injury, look = it.look, showSeries = false) }
+    tapped?.let { (l, p) -> PointDialog(l, p) { tapped = null } }
 }
 
-/** Compare: the two hands of ONE grip with the same lettered markers; chips pick the grip when several are chosen. */
+/** Compare: the two hands of ONE grip with kilo pills on the first and last point; chips pick the grip when several are chosen. */
 @Composable
 @OptIn(ExperimentalLayoutApi::class)
 internal fun TwoHandsMini(picked: List<Picked>, nowMillis: Long) {
@@ -155,7 +130,7 @@ internal fun TwoHandsMini(picked: List<Picked>, nowMillis: Long) {
         if (axis == null) {
             Text("Sin registros en este periodo", color = RgColors.TextSecondary, style = MaterialTheme.typography.bodyMedium)
         } else {
-            GripChart(handLines(p, axis, 0, 1), ticksOf(axis), Modifier.fillMaxWidth().height(230.dp), labelMode = ChartLabelMode.ENDS, onPointTap = { l, pt -> tapped = l to pt })
+            GripChart(handLines(p, axis), ticksOf(axis), Modifier.fillMaxWidth().height(230.dp), labelMode = ChartLabelMode.ENDS, onPointTap = { l, pt -> tapped = l to pt })
             Text("Círculo lleno = derecha · círculo claro y discontinua = izquierda", style = MaterialTheme.typography.labelSmall, color = RgColors.TextSecondary)
             if (hasSingleDay(listOf(p.summary.right.points, p.summary.left.points))) OneDayText()
         }

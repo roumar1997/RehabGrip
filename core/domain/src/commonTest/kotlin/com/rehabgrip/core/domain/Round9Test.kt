@@ -3,10 +3,7 @@ package com.rehabgrip.core.domain
 import com.rehabgrip.core.domain.grip.ColorMath
 import com.rehabgrip.core.domain.grip.GripPalette
 import com.rehabgrip.core.domain.grip.GripStyles
-import com.rehabgrip.core.domain.progress.ChartMode
-import com.rehabgrip.core.domain.progress.ChartModeRules
 import com.rehabgrip.core.domain.progress.DayAxis
-import com.rehabgrip.core.domain.progress.Dodge
 import com.rehabgrip.core.domain.workout.GripSpec
 import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
@@ -101,30 +98,6 @@ class Round9Test {
         assertEquals("ABC", GripStyles.sanitize(" a-b c d"))
     }
 
-    @Test fun dodgeSeparatesHandsAndGrips() {
-        val r = Dodge.offsetDp(true, 0, 1)
-        val l = Dodge.offsetDp(false, 0, 1)
-        assertTrue(r < 0 && l > 0)
-        val offsets = (0 until 3).flatMap { g -> listOf(true, false).map { Dodge.offsetDp(it, g, 3) } }
-        assertEquals(6, offsets.distinct().size)
-        assertEquals(0f, offsets.average().toFloat(), 0.001f)
-    }
-
-    @Test fun dodgeStaysInsideTheArea() {
-        val offsets = (0 until 3).flatMap { g -> listOf(true, false).map { Dodge.offsetDp(it, g, 3) } }
-        val placed = Dodge.place(base = 30f, offsets = offsets, min = 20f, max = 300f)
-        assertTrue(placed.all { it in 20f..300f })
-        assertEquals(offsets.size, placed.distinct().size)
-        val right = Dodge.place(290f, offsets, 20f, 300f)
-        assertTrue(right.all { it in 20f..300f })
-    }
-
-    @Test fun markersOfDifferentGripsLandOnDifferentPoints() {
-        assertEquals(listOf(0, 1, 2), (0..2).map { Dodge.markerIndex(it, 4) })
-        assertEquals(1, Dodge.markerIndex(3, 2))
-        assertEquals(0, Dodge.markerIndex(5, 1))
-    }
-
     @Test fun axisRunsFromFirstRecordToToday() {
         val now = Instant.parse("2026-11-26T10:00:00Z").toEpochMilliseconds()
         val first = LocalDate(2026, 11, 25)
@@ -144,19 +117,4 @@ class Round9Test {
     }
 
     @Test fun emptyRangeHasNoAxis() = assertEquals(null, DayAxis.build(emptyList(), 0, TimeZone.UTC))
-
-    @Test fun defaultModeDependsOnHowManyGrips() {
-        assertEquals(ChartMode.OVERLAID, ChartModeRules.default(1))
-        assertEquals(ChartMode.OVERLAID, ChartModeRules.default(2))
-        assertEquals(ChartMode.SEPARATE, ChartModeRules.default(3))
-        assertEquals(ChartMode.SEPARATE, ChartModeRules.default(9))
-    }
-
-    @Test fun overlaidAllowsAtMostEight() {
-        assertTrue(ChartModeRules.canAdd(ChartMode.OVERLAID, 7))
-        assertTrue(!ChartModeRules.canAdd(ChartMode.OVERLAID, 8))
-        assertTrue(ChartModeRules.canAdd(ChartMode.SEPARATE, 20))
-        assertTrue(!ChartModeRules.canSwitchTo(ChartMode.OVERLAID, 9))
-        assertTrue(ChartModeRules.canSwitchTo(ChartMode.OVERLAID, 8))
-    }
 }

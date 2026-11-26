@@ -54,16 +54,15 @@ fun GripChart(
     ticks: (maxTicks: Int) -> List<AxisTickUi>,
     modifier: Modifier = Modifier,
     labelMode: ChartLabelMode = ChartLabelMode.ALL,
-    lettered: Boolean = false,
     onPointTap: (GripLineUi, GripPointUi) -> Unit = { _, _ -> },
 ) {
     val measurer = rememberTextMeasurer()
     val density = LocalDensity.current
     val d = density.density
     val fontScale = density.fontScale
-    val metrics = remember(d, fontScale, lettered, measurer) {
+    val metrics = remember(d, fontScale, measurer) {
         val textH = measurer.measure("0", LABEL_STYLE).size.height
-        ChartMetrics(d, textH + 6f * d, 7f * d, { measurer.measure(it, LABEL_STYLE).size.width.toFloat() }, lettered, 12f * d * fontScale.coerceIn(1f, 1.4f))
+        ChartMetrics(d, textH + 6f * d, 7f * d, { measurer.measure(it, LABEL_STYLE).size.width.toFloat() })
     }
     val scale = remember(lines) { scaleOf(lines) }
     val scroll = rememberScrollState()
@@ -84,9 +83,8 @@ fun GripChart(
                     val f = built.frame
                     drawGridLines(f, scale)
                     drawTicks(measurer, f, ticks, d)
-                    lines.filter { it.points.size > 1 }.forEach { l -> drawSeries(l, built.placed.filter { it.line === l }) }
-                    built.placed.filter { !it.marker }.forEach { drawDot(it) }
-                    built.placed.filter { it.marker }.forEach { drawMarker(measurer, it, f) }
+                    built.placed.groupBy { it.line }.forEach { (l, pts) -> if (pts.size > 1) drawSeries(l, pts) }
+                    built.placed.forEach { drawDot(it) }
                     built.labels.labels.forEach { drawPill(measurer, it, built.placed[it.keys.first()].line) }
                 }
             }
@@ -94,12 +92,12 @@ fun GripChart(
     }
 }
 
-/** Pills first (they are on top), then markers, then plain dots; nearest inside a finger-sized reach. */
+/** Pills first (they are on top), then dots; nearest inside a finger-sized reach. */
 private fun hit(b: Built, d: Float, tap: Offset): Pair<GripLineUi, GripPointUi>? {
     b.labels.labels.firstOrNull { it.contains(tap.x, tap.y) }?.let { val p = b.placed[it.keys.first()]; return p.line to p.point }
     val reach = 22f * d
     fun dist(p: PlacedPoint) = (p.x - tap.x) * (p.x - tap.x) + (p.y - tap.y) * (p.y - tap.y)
-    val best = b.placed.filter { dist(it) <= reach * reach }.minWithOrNull(compareBy<PlacedPoint> { !it.marker }.thenBy { dist(it) })
+    val best = b.placed.filter { dist(it) <= reach * reach }.minByOrNull { dist(it) }
     return best?.let { it.line to it.point }
 }
 
@@ -120,19 +118,6 @@ private fun DrawScope.drawDot(p: PlacedPoint) {
         drawCircle(l.tint, 4f * density, c)
         drawCircle(l.base, 4f * density, c, style = Stroke(1.5f * density))
     }
-}
-
-private fun DrawScope.drawMarker(measurer: TextMeasurer, p: PlacedPoint, f: Frame) {
-    val l = p.line
-    val c = Offset(p.x, p.y)
-    if (l.right) drawCircle(l.base, f.radius, c)
-    else {
-        drawCircle(l.tint, f.radius, c)
-        drawCircle(l.base, f.radius, c, style = Stroke(2f * density))
-    }
-    val style = TextStyle(color = if (l.right) l.onBase else l.dark, fontSize = if (l.code.length >= 3) 9.sp else 11.sp, fontWeight = FontWeight.Medium)
-    val text = measurer.measure(l.code, style)
-    drawText(text, topLeft = Offset(c.x - text.size.width / 2f, c.y - text.size.height / 2f))
 }
 
 /** Right = filled pill with white number; left (and fused «32 · 32») = tinted pill, coloured border, dark number. */

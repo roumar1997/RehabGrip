@@ -60,8 +60,6 @@ import com.rehabgrip.core.domain.progress.ProgressSummary
 import com.rehabgrip.core.domain.progress.DayPoint
 import com.rehabgrip.core.domain.model.Injury
 import com.rehabgrip.core.domain.grip.GripStyles
-import com.rehabgrip.core.domain.progress.ChartMode
-import com.rehabgrip.core.domain.progress.ChartModeRules
 import com.rehabgrip.core.designsystem.components.InjuryLabels
 import com.rehabgrip.core.designsystem.components.SymmetryOverview
 import kotlinx.datetime.LocalDate
@@ -82,8 +80,6 @@ fun ProgressScreen(
     val options = remember(grips) { grips.map { it.id to it.label } + (DYNAMOMETER_ID to dynamometerName()) }
     val styles = remember(grips) { GripStyles.resolve(grips) }
     val lookOf = { id: Long -> GripLook.of(styles[id] ?: GripStyles.dynamometer()) }
-    var modeText by rememberSaveable { mutableStateOf("") }
-    var notice by remember { mutableStateOf<String?>(null) }
     val selected: Set<Long> = remember(selectedText, measurements, grips) {
         val chosen = selectedText.split(',').mapNotNull { it.toLongOrNull() }.filter { id -> options.any { it.first == id } }.toSet()
         if (selectedText.isNotEmpty()) chosen
@@ -99,7 +95,6 @@ fun ProgressScreen(
             Picked(id, name, lookOf(id), summary)
         }
     }
-    val mode = when (modeText) { "O" -> ChartMode.OVERLAID; "S" -> ChartMode.SEPARATE; else -> ChartModeRules.default(selected.size) }
     Column(Modifier.fillMaxSize()) {
         RgTopBar("Evolución", leadingIcon = Icons.Rounded.BarChart)
         Column(
@@ -113,21 +108,13 @@ fun ProgressScreen(
                 onSelect = { range = it },
             )
             if (view != ProgressView.DISCOMFORT) {
-                GripMultiPicker(options, selected, lookOf, notice) { id ->
-                    if (id !in selected && !ChartModeRules.canAdd(mode, selected.size)) {
-                        notice = ChartModeRules.OVERLAID_FULL
-                    } else {
-                        notice = null
-                        val next = if (id in selected) selected - id else selected + id
-                        selectedText = next.joinToString(",").ifEmpty { "x" }
-                    }
+                GripMultiPicker(options, selected, lookOf) { id ->
+                    val next = if (id in selected) selected - id else selected + id
+                    selectedText = next.joinToString(",").ifEmpty { "x" }
                 }
             }
             when (view) {
-                ProgressView.HANDS -> ByHandView(picked, injury, mode, { m ->
-                    if (ChartModeRules.canSwitchTo(m, selected.size)) { notice = null; modeText = if (m == ChartMode.OVERLAID) "O" else "S" }
-                    else notice = ChartModeRules.OVERLAID_FULL
-                }, nowMillis)
+                ProgressView.HANDS -> ByHandView(picked, injury, nowMillis)
                 ProgressView.COMPARE -> {
                     CompareView(picked, injury)
                     TwoHandsMini(picked, nowMillis)

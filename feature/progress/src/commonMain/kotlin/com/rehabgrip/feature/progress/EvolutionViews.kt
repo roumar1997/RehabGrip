@@ -43,13 +43,12 @@ internal class Picked(val id: Long, val name: String, val look: GripLook, val su
     val color: Color get() = look.color
 }
 
-/** Dropdown with check boxes: each grip shows its letters and colour; [notice] explains a refused tick. */
+/** Dropdown with check boxes: each grip shows its letters and colour. */
 @Composable
 internal fun GripMultiPicker(
     options: List<Pair<Long, String>>,
     selected: Set<Long>,
     lookOf: (Long) -> GripLook,
-    notice: String?,
     onToggle: (Long) -> Unit,
 ) {
     var open by remember { mutableStateOf(false) }
@@ -61,7 +60,6 @@ internal fun GripMultiPicker(
             )
             Icon(if (open) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore, null, tint = RgColors.TextSecondary)
         }
-        notice?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = RgColors.Warning, modifier = Modifier.padding(top = 6.dp)) }
         if (open) options.forEach { (id, name) ->
             val look = lookOf(id)
             Row(Modifier.fillMaxWidth().clickableNoRipple { onToggle(id) }, verticalAlignment = Alignment.CenterVertically) {

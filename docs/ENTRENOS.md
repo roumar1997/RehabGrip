@@ -168,8 +168,7 @@ arrancar. Nombre editable, «Usar esta», «Olvidar» y marca de la activa.
 Cada agarre tiene color (paleta de 8, guardado en `custom_grip.color_index`) y siglas
 (`initials`, máx. 3; SA, E, SE, BE, BA, BP, PA, DM por defecto; propios = iniciales del
 nombre), editables en el formulario de agarre. Lógica en `core/domain/grip/GripStyle.kt` y
-`progress/ChartRules.kt` (eje desde el primer registro hasta hoy, dodge, modo
-Superpuestas/Separadas, máx. 8 superpuestas). Gráfica: `designsystem/chart/GripChart.kt`.
+`progress/ChartRules.kt` (eje desde el primer registro hasta hoy). Gráfica: `designsystem/chart/GripChart.kt`.
 Derecha = círculo lleno y línea continua; izquierda = círculo claro, borde y línea discontinua al 55 %.
 Capturas en `docs/capturas/ronda9/`.
 
@@ -179,12 +178,17 @@ Paleta curada de 16 colores (ΔE mínimo 20, `GripColors.kt`) y, más allá, gen
 predefinidos (7 agarres + dinamómetro) conservan los suyos y quedan reservados. Un agarre propio
 coge el primer color libre; al arrancar (`ensureDefaults`) se reparan duplicados y colores vacíos
 (`GripStyles.repairs`). El editor tacha los usados con el nombre de su dueño, tiene «Elegir color»
-(matiz y luminosidad) y no deja guardar un color demasiado parecido. Superpuestas sigue limitado a 8
-por legibilidad. Columna nueva `color_argb` (migración 6.sqm). Capturas en `docs/capturas/ronda9b/`.
+(matiz y luminosidad) y no deja guardar un color demasiado parecido.  Columna nueva `color_argb` (migración 6.sqm). Capturas en `docs/capturas/ronda9b/`.
 
 ## Ronda 10: Evolución con kilos en píldora
 Etiqueta de kilos por punto: derecha = píldora llena debajo, izquierda = píldora hueca encima; la mano con más valor
 ese día va arriba (si se cruzan, se invierte). Puntos casi iguales se separan 5 dp y, si chocan, se funden «32 · 32».
 Prioridad si no caben: primero, último, máximo, resto. Si los días no caben con etiquetas legibles la gráfica se
 desliza (eje Y fijo, empieza por los últimos días, tope 8 anchos de pantalla). Rejilla cada 5 kg, número cada 10.
-Superpuestas y mini de Comparar: kilos solo en primer y último punto. Lógica en `core/domain/.../ChartLabels.kt`.
+La mini de Comparar lleva kilos solo en primer y último punto. Lógica en `core/domain/.../ChartLabels.kt`.
+
+## Ronda 11: solo «Separadas»
+Se quita «Superpuestas» (segmentado, límite de 8, aviso, modo guardado, dodge y marcadores con letra). «Por mano»
+muestra siempre una tarjeta por agarre seleccionado, sin límite, con título «SA · Nombre», punto de color y su
+gráfica; la leyenda de manos va una vez arriba y el aviso de «un solo día» dentro de cada tarjeta afectada.
+Capturas en `docs/capturas/ronda11/`.
