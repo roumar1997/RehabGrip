@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -120,7 +121,7 @@ fun WorkoutRunScreen(
             Progress(state)
             RgCard(Modifier.fillMaxWidth().weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("${formatKg(state.currentKg)} kg", style = MaterialTheme.typography.headlineMedium, color = RgColors.Navy, modifier = Modifier.weight(1f), maxLines = 1)
+                    Spacer(Modifier.weight(1f))
                     ZoneChip(phase, state.zoneStatus, snap.zone != null)
                 }
                 LiveForceChart(trace, Modifier.fillMaxWidth().weight(1f), zone = snap.zone)

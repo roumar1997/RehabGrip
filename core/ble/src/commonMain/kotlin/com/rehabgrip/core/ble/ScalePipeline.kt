@@ -78,14 +78,35 @@ class DeviceLock(
     }
 }
 
+/** Counters of what happened to the frames: seen -> from the locked device -> decoded -> held back by the spike filter -> accepted. */
+class PipelineStats {
+    var seen = 0
+    var fromLocked = 0
+    var decoded = 0
+    var held = 0
+    var accepted = 0
+
+    fun summary() = "recibidas $seen · del dispositivo $fromLocked · decodificadas $decoded · retenidas por saltos $held · aceptadas $accepted"
+}
+
 /** Frame in, reading out: device lock, decoding and spike filter. Shared by Android, iOS and the simulator. */
 class ScalePipeline(val lock: DeviceLock = DeviceLock(), private val filter: JumpFilter = JumpFilter()) {
+    val stats = PipelineStats()
+
     /** [manufacturer] may carry the 2 company-ID bytes or not. */
     fun process(id: String, name: String?, rssi: Int, manufacturer: ByteArray, nowMs: Long): ScaleReading? {
         val payload = CraneAdvertisementParser.payloadOf(manufacturer)
+        stats.seen++
         if (!lock.accept(id, name, rssi, payload, nowMs)) return null
+        stats.fromLocked++
         val reading = CraneAdvertisementParser.parse(payload) ?: return null
-        val kg = filter.accept(reading.kg, nowMs) ?: return null
+        stats.decoded++
+        val kg = filter.accept(reading.kg, nowMs)
+        if (kg == null) {
+            stats.held++
+            return null
+        }
+        stats.accepted++
         return reading.copy(kg = kg, rssi = rssi, deviceName = name)
     }
 }

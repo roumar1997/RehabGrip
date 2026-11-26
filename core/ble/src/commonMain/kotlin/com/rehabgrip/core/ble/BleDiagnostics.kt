@@ -26,6 +26,8 @@ data class SeenDevice(
     val manufacturerHex: String,
     val advertisements: Int,
     val perSecond: Double,
+    /** Advertisements per second that carried manufacturer data (the ones that hold a weight). */
+    val withDataPerSecond: Double = 0.0,
     val looksLikeScale: Boolean,
     /** Weight read with the WH-C06 protocol, or null when the payload does not fit it. */
     val interpretedKg: Double?,
@@ -38,6 +40,7 @@ class DiagnosticsAccumulator {
         var rssi = 0
         var manufacturer: ByteArray? = null
         var count = 0
+        var withData = 0
         var kg: Double? = null
     }
 
@@ -58,6 +61,7 @@ class DiagnosticsAccumulator {
         e.rssi = ad.rssi
         if (!ad.name.isNullOrBlank()) e.name = ad.name
         ad.manufacturer?.let { m ->
+            e.withData++
             e.manufacturer = m
             CraneAdvertisementParser.parseAny(m)?.let { e.kg = it.kg }
         }
@@ -72,7 +76,7 @@ class DiagnosticsAccumulator {
             SeenDevice(
                 id = e.id, name = e.name, rssi = e.rssi, companyId = company,
                 manufacturerHex = m?.toHex().orEmpty(), advertisements = e.count,
-                perSecond = e.count / seconds, looksLikeScale = looksLikeScale(e.name, company) || (m != null && CraneAdvertisementParser.hasSignature(CraneAdvertisementParser.payloadOf(m))), interpretedKg = e.kg,
+                perSecond = e.count / seconds, withDataPerSecond = e.withData / seconds, looksLikeScale = looksLikeScale(e.name, company) || (m != null && CraneAdvertisementParser.hasSignature(CraneAdvertisementParser.payloadOf(m))), interpretedKg = e.kg,
             )
         }.sortedWith(compareByDescending<SeenDevice> { it.looksLikeScale }.thenByDescending { it.rssi })
     }
@@ -94,7 +98,7 @@ class DiagnosticsAccumulator {
         /** Report of a single device (its own «Copiar»). */
         fun reportOne(d: SeenDevice): String = buildString {
             appendLine("${if (d.looksLikeScale) "[WH-C06?] " else ""}${d.name ?: "(sin nombre)"} · ${d.id}")
-            appendLine("  RSSI ${d.rssi} dBm · ${d.advertisements} anuncios (${(d.perSecond * 10).toInt() / 10.0}/s)")
+            appendLine("  RSSI ${d.rssi} dBm · ${d.advertisements} anuncios (${(d.perSecond * 10).toInt() / 10.0}/s, con datos ${(d.withDataPerSecond * 10).toInt() / 10.0}/s)")
             appendLine("  company ${d.companyId?.let { "0x" + it.toString(16).padStart(4, '0') } ?: "—"} · datos ${d.manufacturerHex.ifEmpty { "—" }}")
             d.interpretedKg?.let { appendLine("  peso interpretado: $it kg") }
         }

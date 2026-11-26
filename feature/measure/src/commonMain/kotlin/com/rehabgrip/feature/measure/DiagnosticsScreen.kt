@@ -68,6 +68,8 @@ fun DiagnosticsScreen(
     var recordLeft by remember { mutableStateOf(0) }
     var frames by remember { mutableStateOf<List<RecordedFrame>>(emptyList()) }
     var frameReport by remember { mutableStateOf("") }
+    var pipelineLine by remember { mutableStateOf<String?>(null) }
+    var types by remember { mutableStateOf<List<com.rehabgrip.core.ble.FrameType>>(emptyList()) }
     val status by scanner.status.collectAsState()
     val clipboard = LocalClipboardManager.current
     fun copy(text: String) = clipboard.setText(AnnotatedString(text))
@@ -94,12 +96,20 @@ fun DiagnosticsScreen(
     LaunchedEffect(rec) {
         if (rec == null) return@LaunchedEffect
         val recorder = FrameRecorder()
+        val pipeline = com.rehabgrip.core.ble.ScalePipeline(com.rehabgrip.core.ble.DeviceLock(rec.device.id))
         val mark = TimeSource.Monotonic.markNow()
         frames = emptyList()
         recordLeft = RECORD_SECONDS
         scanner.start()
         val collector = launch {
-            scanner.advertisements.collect { ad -> if (ad.id == rec.device.id) ad.manufacturer?.let(recorder::add) }
+            scanner.advertisements.collect { ad ->
+                if (ad.id == rec.device.id) {
+                    recorder.add(ad.manufacturer)
+                    ad.manufacturer?.let { pipeline.process(ad.id, ad.name, ad.rssi, it, mark.elapsedNow().inWholeMilliseconds) }
+                    pipelineLine = pipeline.stats.summary()
+                    types = recorder.frameTypes()
+                }
+            }
         }
         while (mark.elapsedNow().inWholeSeconds < RECORD_SECONDS) {
             delay(500)
@@ -110,7 +120,7 @@ fun DiagnosticsScreen(
         scanner.stop()
         recordLeft = 0
         frames = recorder.frames()
-        frameReport = recorder.report(rec.device.name ?: rec.device.id, RECORD_SECONDS)
+        frameReport = recorder.report(rec.device.name ?: rec.device.id, RECORD_SECONDS, pipelineLine)
     }
 
     Column(Modifier.fillMaxSize()) {
@@ -139,7 +149,7 @@ fun DiagnosticsScreen(
                     )
                 }
             }
-            if (rec != null) item { FramesCard(rec.device, frames, recordLeft, frameReport, ::copy) }
+            if (rec != null) item { FramesCard(rec.device, frames, types, pipelineLine, recordLeft, frameReport, ::copy) }
             items(devices, key = { it.id }) { d ->
                 DeviceCard(
                     d, used = d.id == usedId, canRecord = secondsLeft == 0 && recordLeft == 0,
@@ -171,7 +181,7 @@ private fun DeviceCard(
             (if (d.looksLikeScale) "WH-C06 · " else "") + (d.name ?: "(sin nombre)") + if (used) " · en uso" else "",
             style = MaterialTheme.typography.titleSmall, color = if (d.looksLikeScale) RgColors.Success else RgColors.Navy,
         )
-        Text("RSSI ${d.rssi} dBm · ${d.advertisements} anuncios · ${(d.perSecond * 10).toInt() / 10.0}/s", style = MaterialTheme.typography.bodySmall, color = RgColors.TextSecondary)
+        Text("RSSI ${d.rssi} dBm · ${d.advertisements} anuncios · ${(d.perSecond * 10).toInt() / 10.0}/s (con datos ${(d.withDataPerSecond * 10).toInt() / 10.0}/s)", style = MaterialTheme.typography.bodySmall, color = RgColors.TextSecondary)
         Text(
             "Company ${d.companyId?.let { "0x" + it.toString(16).padStart(4, '0') } ?: "—"}",
             style = MaterialTheme.typography.bodySmall, color = RgColors.TextSecondary,
@@ -187,13 +197,18 @@ private fun DeviceCard(
 }
 
 @Composable
-private fun FramesCard(d: SeenDevice, frames: List<RecordedFrame>, left: Int, report: String, copy: (String) -> Unit) {
+private fun FramesCard(
+    d: SeenDevice, frames: List<RecordedFrame>, types: List<com.rehabgrip.core.ble.FrameType>, pipeline: String?,
+    left: Int, report: String, copy: (String) -> Unit,
+) {
     RgCard(Modifier.fillMaxWidth()) {
         Text("Tramas de ${d.name ?: d.id}", style = MaterialTheme.typography.titleSmall, color = RgColors.Navy)
         Text(
             if (left > 0) "Grabando… $left s · ${frames.size} distintas" else "${frames.size} tramas distintas",
             style = MaterialTheme.typography.bodySmall, color = RgColors.TextSecondary,
         )
+        pipeline?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = RgColors.Primary) }
+        types.forEach { Text("Tipo " + it.key + " · x" + it.count, style = MaterialTheme.typography.bodySmall, color = RgColors.Navy) }
         frames.sortedByDescending { it.count }.take(40).forEach { f ->
             Text(
                 "${if (f.jump) "SALTO " else ""}${f.hex}\n   x${f.count} · ${f.kg?.let { formatKg(it) + " kg" } ?: "sin peso"}",

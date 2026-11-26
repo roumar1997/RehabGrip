@@ -87,10 +87,6 @@ fun MeterScreen(
             RgCard(Modifier.fillMaxWidth()) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("Ahora", style = MaterialTheme.typography.labelMedium, color = RgColors.TextSecondary)
-                        Text("${formatKg(state.currentKg)} kg", style = MaterialTheme.typography.headlineMedium, color = RgColors.Navy, maxLines = 1)
-                    }
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text("MÁXIMO", style = MaterialTheme.typography.labelMedium, color = RgColors.TextSecondary)
                         Text("${formatKg(max)} kg", style = MaterialTheme.typography.displayMedium, color = RgColors.Primary, maxLines = 1)
                     }

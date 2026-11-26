@@ -44,6 +44,7 @@ internal data class AppData(
     val scaleName: String? = null,
     val scaleId: String? = null,
     val contaminated: Boolean = false,
+    val scaleCustomName: String? = null,
 ) {
     val measurements: List<Measurement> = allMeasurements.filter { it.isMine }
 
@@ -68,8 +69,10 @@ internal fun rememberAppData(container: AppContainer): AppData {
     val scaleId by remember { container.settings.observeString(AppContainer.KEY_SCALE_ID) }.collectAsState(null)
     val contaminated by remember { container.settings.observeFlag(SIM_CONTAMINATED_KEY, false) }.collectAsState(false)
     container.contaminatedSim = contaminated
+    val customName by remember { container.settings.observeString(AppContainer.KEY_SCALE_CUSTOM_NAME) }.collectAsState(null)
+    com.rehabgrip.core.ble.ScaleNaming.custom = customName
     container.lockedScaleId = scaleId ?: container.lockedScaleId
-    return AppData(measurements, simulated, workouts, grips, evaluations, results, scaleName, scaleId, contaminated)
+    return AppData(measurements, simulated, workouts, grips, evaluations, results, scaleName, scaleId, contaminated, customName)
 }
 
 /** Users who onboarded before injuries existed answer it once. */

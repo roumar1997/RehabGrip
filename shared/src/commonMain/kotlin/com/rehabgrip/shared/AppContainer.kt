@@ -153,5 +153,6 @@ class AppContainer(val platform: PlatformServices) {
         const val KEY_SEEDED_GRIP_SESSION = "seeded_grip_session"
         const val KEY_SCALE_ID = "scale_device_id"
         const val KEY_SCALE_NAME = "scale_device_name"
+        const val KEY_SCALE_CUSTOM_NAME = "scale_custom_name"
     }
 }

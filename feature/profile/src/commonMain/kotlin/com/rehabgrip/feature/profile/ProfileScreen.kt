@@ -77,6 +77,7 @@ data class ProfileUiState(
     /** Name of the scale this phone is locked to (null = auto). */
     val scaleName: String? = null,
     val scaleLocked: Boolean = false,
+    val scaleCustomName: String? = null,
     val simContaminated: Boolean = false,
     /** Other people's records, kept apart from mine. */
     val friends: List<FriendMaxes> = emptyList(),
@@ -95,6 +96,7 @@ fun ProfileScreen(
     onEvaluate: (GripSpec) -> Unit = {},
     onDiagnostics: () -> Unit = {},
     onForgetScale: () -> Unit = {},
+    onScaleName: (String) -> Unit = {},
     onSimContaminated: (Boolean) -> Unit = {},
 ) {
     var dialog by rememberSaveable { mutableStateOf<String?>(null) }
@@ -142,6 +144,8 @@ fun ProfileScreen(
                 Option(Icons.Rounded.Notifications, "Recordatorios", onReminders)
                 HorizontalDivider(color = RgColors.Outline)
                 Option(Icons.Rounded.Bluetooth, "Báscula · diagnóstico Bluetooth", onDiagnostics)
+                HorizontalDivider(color = RgColors.Outline)
+                Option(Icons.Rounded.Badge, "Nombre de mi báscula (${state.scaleCustomName ?: "Báscula " + (state.scaleName ?: "IF_B7")})") { dialog = DIALOG_SCALE_NAME }
                 if (state.scaleLocked) {
                     HorizontalDivider(color = RgColors.Outline)
                     Option(Icons.Rounded.Bluetooth, "Olvidar báscula (${state.scaleName ?: "elegida"})", onForgetScale)
@@ -179,6 +183,7 @@ fun ProfileScreen(
     }
     when (dialog) {
         DIALOG_INJURY -> InjuryDialog(state.injury, { dialog = null }) { onInjury(it); dialog = null }
+        DIALOG_SCALE_NAME -> RenameDialog(state.scaleCustomName ?: "Báscula " + (state.scaleName ?: "IF_B7"), { dialog = null }, "Nombre de tu báscula") { onScaleName(it); dialog = null }
         DIALOG_NAME -> RenameDialog(state.name, { dialog = null }) { onRename(it); dialog = null }
         DIALOG_TIPS -> InfoDialog("Información y consejos", TIPS) { dialog = null }
         DIALOG_ABOUT -> InfoDialog("Acerca de Rehagrip", ABOUT) { dialog = null }
@@ -216,11 +221,11 @@ private fun Footer() {
 }
 
 @Composable
-private fun RenameDialog(current: String, onDismiss: () -> Unit, onSave: (String) -> Unit) {
+private fun RenameDialog(current: String, onDismiss: () -> Unit, title: String = "Tu nombre", onSave: (String) -> Unit) {
     var name by rememberSaveable { mutableStateOf(current) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Tu nombre") },
+        title = { Text(title) },
         text = { OutlinedTextField(name, { name = it.take(40) }, singleLine = true, shape = RoundedCornerShape(16.dp)) },
         confirmButton = { TextButton(onClick = { onSave(name.trim()) }, enabled = name.isNotBlank()) { Text("Guardar") } },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } },
@@ -236,6 +241,7 @@ private fun InfoDialog(title: String, body: String, onDismiss: () -> Unit) = Ale
 )
 
 private const val DIALOG_NAME = "name"
+private const val DIALOG_SCALE_NAME = "scale_name"
 private const val DIALOG_TIPS = "tips"
 private const val DIALOG_ABOUT = "about"
 private const val DIALOG_SAMPLE = "sample"

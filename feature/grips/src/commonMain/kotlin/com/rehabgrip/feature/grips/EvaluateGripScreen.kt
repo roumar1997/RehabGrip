@@ -158,7 +158,6 @@ private fun LivePanel(hand: Hand, injury: Injury, state: EvaluationState, trace:
             "Mano ${InjuryLabels.handRole(hand, injury).lowercase()}: ¡tira lo más fuerte que puedas!",
             style = MaterialTheme.typography.titleMedium, color = RgColors.Navy,
         )
-        Text("${formatKg(state.currentKg)} kg", style = MaterialTheme.typography.displayMedium, color = RgColors.Navy)
         Text("Máximo: ${formatKg(state.peakKg)} kg", style = MaterialTheme.typography.titleSmall, color = RgColors.Primary)
         LiveForceChart(trace, Modifier.fillMaxWidth().height(200.dp))
         Text(

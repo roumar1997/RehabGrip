@@ -29,6 +29,7 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.sp
 import com.rehabgrip.core.designsystem.components.formatKg
 import com.rehabgrip.core.designsystem.theme.RgColors
+import com.rehabgrip.core.domain.signal.EdgeSampler
 import com.rehabgrip.core.domain.signal.ForceRingBuffer
 import com.rehabgrip.core.domain.signal.niceScale
 import com.rehabgrip.core.domain.workout.TargetZone
@@ -65,7 +66,6 @@ class LiveForceTrace(capacity: Int = ForceRingBuffer.DEFAULT_CAPACITY) {
     }
 }
 
-private const val RENDER_LAG_MS = 150L
 private const val MAX_POINTS_PER_PX = 0.5f
 
 private class PeakLabel {
@@ -89,12 +89,13 @@ fun LiveForceChart(
     LaunchedEffect(trace) {
         while (true) withFrameNanos { trace.frameMs = trace.nowMs() }
     }
+    val valueStyle = remember { TextStyle(color = RgColors.Navy, fontSize = 26.sp, fontWeight = FontWeight.ExtraBold) }
     val peakStyle = remember { TextStyle(color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.ExtraBold) }
     Box(
         modifier.fillMaxSize().drawWithCache {
             val left = (40f * density)
             val bottom = size.height - (22f * density)
-            val top = (30f * density)
+            val top = (48f * density)
             val right = size.width - (8f * density)
             val line = Path()
             val area = Path()
@@ -106,6 +107,8 @@ fun LiveForceChart(
             val xLabels = listOf("-${windowMs / 1000} s", "-${windowMs / 2000} s", "ahora").map { measurer.measure(it, axisStyle) }
             val yLabels = HashMap<Int, TextLayoutResult>()
             val peakLabel = PeakLabel()
+            val valueLabel = PeakLabel()
+            val sampler = EdgeSampler()
             val maxPoints = max(8, (size.width * MAX_POINTS_PER_PX).toInt())
             val zoneTop = (zone?.maxKg ?: zone?.minKg ?: 0.0).toFloat()
             val buf = trace.buffer
@@ -113,7 +116,8 @@ fun LiveForceChart(
 
             onDrawBehind {
                 trace.tick // invalidates only the drawing when a sample arrives
-                val end = trace.frameMs - RENDER_LAG_MS
+                val edge = sampler.edge(buf, trace.frameMs)
+                val end = edge.tMs
                 val start = end - windowMs
                 val first = buf.firstIndexAtOrAfter(start)
                 var last = buf.firstIndexAtOrAfter(end + 1) - 1
@@ -135,6 +139,13 @@ fun LiveForceChart(
                     val layout = yLabels.getOrPut(value) { measurer.measure(value.toString(), axisStyle) }
                     drawText(layout, topLeft = Offset(left - layout.size.width - 6f, yy - layout.size.height / 2f))
                 }
+                // The big number: the value at the right edge of the line, same instant, same function.
+                val vKey = (edge.kg * 10f).toInt()
+                if (valueLabel.key != vKey) {
+                    valueLabel.key = vKey
+                    valueLabel.layout = measurer.measure("${formatKg(edge.kg.toDouble())} kg", valueStyle)
+                }
+                drawText(valueLabel.layout!!, topLeft = Offset(left, 4f * density))
                 if (zone != null) drawZone(zone, left, right, top, bottom, ::y)
                 val xs = floatArrayOf(left, (left + right) / 2f, right)
                 for (k in 0..2) {
@@ -166,7 +177,7 @@ fun LiveForceChart(
                     i += stride
                 }
                 val xEnd = x(end)
-                val yEnd = y(buf.interpolate(end))
+                val yEnd = y(edge.kg)
                 line.lineTo(xEnd, yEnd)
                 area.lineTo(xEnd, yEnd)
                 area.lineTo(xEnd, bottom)

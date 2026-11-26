@@ -6,7 +6,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
+import androidx.compose.material.icons.rounded.ExpandLess
+import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material.icons.rounded.Speed
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import com.rehabgrip.core.designsystem.components.formatRecordDay
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -25,16 +32,21 @@ import com.rehabgrip.core.domain.workout.GripSpec
 /** «Mis agarres»: the evaluated max of each hand per grip and when it was set. */
 @Composable
 internal fun GripRecordsCard(state: ProfileUiState, onGrips: () -> Unit, onEvaluate: (GripSpec) -> Unit) {
+    var open by rememberSaveable { mutableStateOf(false) }
+    val withData = state.maxRows.filter { it.right != null || it.left != null }
+    val last = withData.flatMap { listOfNotNull(it.right?.epochMillis, it.left?.epochMillis) }.maxOrNull()
+    val summary = "${withData.size} agarres" + (last?.let { " · último " + formatRecordDay(it).take(5) } ?: "")
     RgCard(Modifier.fillMaxWidth()) {
-        Row(Modifier.fillMaxWidth().clickableNoRipple(onGrips), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.fillMaxWidth().clickableNoRipple { open = !open }, verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Rounded.Speed, null, tint = RgColors.Primary)
-            Text(
-                "Mis máximos", style = MaterialTheme.typography.titleMedium, color = RgColors.Navy,
-                modifier = Modifier.weight(1f).padding(start = 12.dp),
-            )
-            Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, null, tint = RgColors.TextSecondary)
+            Column(Modifier.weight(1f).padding(start = 12.dp)) {
+                Text("Mis máximos", style = MaterialTheme.typography.titleMedium, color = RgColors.Navy)
+                Text(summary, style = MaterialTheme.typography.bodySmall, color = RgColors.TextSecondary, maxLines = 1)
+            }
+            Icon(if (open) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore, null, tint = RgColors.TextSecondary)
         }
-        state.maxRows.forEach { row ->
+        if (open) TextButton(onClick = onGrips) { Text("Mis agarres (editar y crear)") }
+        if (open) state.maxRows.forEach { row ->
             HorizontalDivider(Modifier.padding(top = 10.dp), color = RgColors.Outline)
             Column(Modifier.padding(top = 10.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {

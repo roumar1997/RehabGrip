@@ -13,6 +13,11 @@ import kotlin.time.TimeSource
 enum class SignalState { CONNECTING, SEARCHING, CONNECTED, LOST, BLUETOOTH_OFF, UNAUTHORIZED }
 
 /** What the user is told about the scale: state plus how many readings per second arrive. */
+/** The name the user gave to the scale («Nombre de mi báscula»); null = «Báscula <name of the device>». */
+object ScaleNaming {
+    var custom: String? = null
+}
+
 data class SignalInfo(
     val state: SignalState = SignalState.CONNECTING,
     val readingsPerSecond: Int = 0,
@@ -25,7 +30,8 @@ data class SignalInfo(
         SignalState.CONNECTING -> "Conectando con la báscula…"
         SignalState.SEARCHING -> "Buscando báscula…"
         SignalState.CONNECTED -> listOfNotNull(
-            if (rssi == null && deviceName == null) "Báscula conectada" else "Báscula" + (deviceName?.let { " $it" } ?: ""),
+            ScaleNaming.custom?.takeIf { it.isNotBlank() }
+                ?: if (rssi == null && deviceName == null) "Báscula conectada" else "Báscula" + (deviceName?.let { " $it" } ?: ""),
             rssi?.let { "$it dBm" },
             "$readingsPerSecond lecturas/s",
         ).joinToString(" · ")
