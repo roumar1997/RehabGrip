@@ -2,6 +2,8 @@ package com.rehabgrip.feature.grips
 
 import com.rehabgrip.core.ble.ForceSource
 import com.rehabgrip.core.ble.ScaleStatus
+import com.rehabgrip.core.ble.SignalInfo
+import com.rehabgrip.core.ble.SignalMonitor
 import com.rehabgrip.core.domain.grip.HoldStats
 import com.rehabgrip.core.designsystem.chart.LiveForceTrace
 import com.rehabgrip.core.domain.model.Hand
@@ -19,6 +21,7 @@ data class HandEvaluation(val maxKg: Double, val minKg: Double?, val avgKg: Doub
 data class EvaluationState(
     val sourceName: String,
     val status: ScaleStatus = ScaleStatus.IDLE,
+    val signal: SignalInfo = SignalInfo(),
     /** Hand being measured right now, or null. */
     val measuring: Hand? = null,
     val currentKg: Double = 0.0,
@@ -41,10 +44,13 @@ class GripEvaluationPresenter(
     val trace = LiveForceTrace()
     private val buffer = mutableListOf<Double>()
     private var jobs: List<Job> = emptyList()
+    private val monitor = SignalMonitor(source, scope)
 
     fun start() {
         source.start()
+        monitor.start()
         jobs = listOf(
+            scope.launch { monitor.state.collect { s -> _state.update { it.copy(signal = s) } } },
             scope.launch { source.status.collect { s -> _state.update { it.copy(status = s) } } },
             scope.launch { source.readings.collect { onReading(it.kg) } },
         )
@@ -89,8 +95,17 @@ class GripEvaluationPresenter(
 
     fun clear(hand: Hand) = _state.update { it.copy(results = it.results - hand) }
 
+    /** «Repetir»: forgets the maximum and the graph and keeps measuring the same hand. */
+    fun restartMeasure() {
+        if (_state.value.measuring == null) return
+        buffer.clear()
+        trace.clear()
+        _state.update { it.copy(peakKg = 0.0, message = null) }
+    }
+
     fun dispose() {
         jobs.forEach { it.cancel() }
+        monitor.stop()
         source.setEffort(false)
         source.stop()
     }

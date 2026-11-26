@@ -56,6 +56,7 @@ internal fun GripEvaluateRoute(grip: GripSpec, container: AppContainer, session:
         onBack = onClose,
         onMeasure = presenter::beginMeasure,
         onStop = presenter::finishMeasure,
+        onRestart = presenter::restartMeasure,
         onManual = presenter::setManual,
         onClear = presenter::clear,
         onSave = {

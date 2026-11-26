@@ -16,6 +16,7 @@ import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Stop
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -57,6 +58,7 @@ fun EvaluateGripScreen(
     onBack: () -> Unit,
     onMeasure: (Hand) -> Unit,
     onStop: () -> Unit,
+    onRestart: () -> Unit,
     onManual: (Hand, Double, Double?, Double?) -> Unit,
     onClear: (Hand) -> Unit,
     onSave: () -> Unit,
@@ -74,7 +76,7 @@ fun EvaluateGripScreen(
             }
             val measuring = state.measuring
             if (measuring != null) {
-                LivePanel(measuring, injury, state, trace, onStop)
+                LivePanel(measuring, injury, state, trace, onStop, onRestart)
             } else {
                 RgInfoBanner(
                     "Recomendado antes de entrenar: tira lo más fuerte que puedas y mantén unos segundos. " +
@@ -148,7 +150,7 @@ private fun HandCard(
 }
 
 @Composable
-private fun LivePanel(hand: Hand, injury: Injury, state: EvaluationState, trace: LiveForceTrace, onStop: () -> Unit) {
+private fun LivePanel(hand: Hand, injury: Injury, state: EvaluationState, trace: LiveForceTrace, onStop: () -> Unit, onRestart: () -> Unit) {
     RgCard(Modifier.fillMaxWidth()) {
         Text(
             "Mano ${InjuryLabels.handRole(hand, injury).lowercase()}: ¡tira lo más fuerte que puedas!",
@@ -157,9 +159,11 @@ private fun LivePanel(hand: Hand, injury: Injury, state: EvaluationState, trace:
         Text("${formatKg(state.currentKg)} kg", style = MaterialTheme.typography.displayMedium, color = RgColors.Navy)
         Text("Máximo: ${formatKg(state.peakKg)} kg", style = MaterialTheme.typography.titleSmall, color = RgColors.Primary)
         LiveForceChart(trace, Modifier.fillMaxWidth().height(200.dp))
-        if (state.status != ScaleStatus.RECEIVING) {
-            Text("${state.sourceName}: buscando señal…", style = MaterialTheme.typography.bodySmall, color = RgColors.Warning)
-        }
+        Text(
+            state.signal.label(), style = MaterialTheme.typography.bodySmall,
+            color = if (state.signal.connected) RgColors.Success else RgColors.Warning, maxLines = 1,
+        )
+        RgSecondaryButton("Repetir / empezar de cero", onRestart, Modifier.padding(top = 8.dp), icon = Icons.Rounded.Refresh)
         RgPrimaryButton("Parar y guardar valor", onStop, Modifier.padding(top = 10.dp), icon = Icons.Rounded.Stop, color = RgColors.Navy)
     }
 }

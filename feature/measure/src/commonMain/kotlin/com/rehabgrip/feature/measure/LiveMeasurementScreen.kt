@@ -33,7 +33,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.rehabgrip.core.ble.ScaleStatus
+import com.rehabgrip.core.ble.SignalState
 import com.rehabgrip.core.designsystem.chart.LiveForceChart
 import com.rehabgrip.core.designsystem.chart.LiveForceTrace
 import com.rehabgrip.core.designsystem.components.Labels
@@ -112,19 +112,18 @@ fun LiveMeasurementScreen(
 
 @Composable
 private fun StatusCard(state: LiveState) {
-    val (text, color) = when (state.status) {
-        ScaleStatus.RECEIVING -> "Conectado" to RgColors.Success
-        ScaleStatus.SCANNING, ScaleStatus.IDLE -> "Buscando báscula…" to RgColors.Warning
-        ScaleStatus.LOST -> "Señal perdida, reintentando…" to RgColors.Warning
-        ScaleStatus.BLUETOOTH_OFF -> "Activa el Bluetooth" to RgColors.Danger
-        ScaleStatus.UNAUTHORIZED -> "Falta permiso de Bluetooth" to RgColors.Danger
+    val text = state.signal.label()
+    val color = when (state.signal.state) {
+        SignalState.CONNECTED -> RgColors.Success
+        SignalState.BLUETOOTH_OFF, SignalState.UNAUTHORIZED -> RgColors.Danger
+        else -> RgColors.Warning
     }
     Column(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(RgColors.SurfaceTint).padding(12.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            if (state.status == ScaleStatus.RECEIVING) {
+            if (state.signal.connected) {
                 Box(Modifier.size(14.dp).clip(CircleShape).background(color))
             } else {
                 Icon(Icons.Rounded.BluetoothSearching, null, tint = color, modifier = Modifier.size(18.dp))

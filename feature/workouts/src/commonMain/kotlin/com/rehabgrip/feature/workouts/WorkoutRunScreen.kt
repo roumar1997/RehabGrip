@@ -3,6 +3,7 @@ package com.rehabgrip.feature.workouts
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -59,10 +60,6 @@ fun WorkoutRunScreen(
     onSkip: () -> Unit,
     onFinish: () -> Unit,
 ) {
-    if (!state.started) {
-        RunIntro(template, state, onBegin, onFinish)
-        return
-    }
     val snap = state.snapshot
     val slot = snap.slot
     val phase = snap.phase
@@ -80,7 +77,8 @@ fun WorkoutRunScreen(
             if (slot == null) "Completado" else "Serie ${slot.setIndex + 1}/${template.sets.size} · Rep ${slot.rep}/${template.sets[slot.setIndex].reps}",
             onBack = onFinish,
         )
-        Column(Modifier.weight(1f).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Box(Modifier.weight(1f)) {
+        Column(Modifier.fillMaxSize().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             if (set != null) {
                 Text(
                     WorkoutLabels.grip(set.grip), style = MaterialTheme.typography.titleMedium, color = RgColors.Navy,
@@ -131,7 +129,9 @@ fun WorkoutRunScreen(
                 }
             }
         }
-        Row(
+        if (!state.started) StartOverlay(template, state, onBegin)
+        }
+        if (state.started) Row(
             Modifier.padding(16.dp).navigationBarsPadding().fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
@@ -153,7 +153,7 @@ fun WorkoutRunScreen(
 }
 
 private fun phaseText(phase: EnginePhase, state: RunState): String = when {
-    state.paused -> "En pausa"
+    state.started && state.paused -> "En pausa"
     phase == EnginePhase.PREPARE -> "Prepárate…"
     phase == EnginePhase.REST -> "Descansa"
     phase == EnginePhase.WAITING -> "¡Tira! El tiempo empieza al superar el umbral"
