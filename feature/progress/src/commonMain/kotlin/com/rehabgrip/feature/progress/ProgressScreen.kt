@@ -1,5 +1,6 @@
 package com.rehabgrip.feature.progress
 
+import com.rehabgrip.core.designsystem.components.GripLook
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll

@@ -33,7 +33,7 @@ class SqlGripRepository(private val db: RehabGripDatabase) : GripRepository {
                 type = enumOrNull<GripType>(it.type) ?: GripType.OTHER,
                 builtIn = enumOrNull<Exercise>(it.built_in),
                 presetKey = it.built_in?.takeIf { k -> k.startsWith(GripSpec.PRESET_PREFIX) }?.removePrefix(GripSpec.PRESET_PREFIX),
-                colorIndex = it.color_index?.toInt(),
+                color = it.color_argb,
                 initials = it.initials,
             )
         }
@@ -44,14 +44,14 @@ class SqlGripRepository(private val db: RehabGripDatabase) : GripRepository {
         val note = grip.fingerNote.trim()
         val initials = GripStyles.sanitize(grip.initials)
         // A new own grip gets the first free colour at once, so it never changes later.
-        val color = grip.colorIndex ?: if (grip.id == 0L && !grip.isPredefined) GripStyles.nextFreeColor(observeAll().first()) else null
+        val color = grip.color ?: if (grip.id == 0L && !grip.isPredefined) GripStyles.nextFreeColor(observeAll().first()) else null
         if (grip.id == 0L) {
             q.transactionWithResult {
-                q.insertGrip(name, grip.edgeMm.toLong(), grip.fingerCount.toLong(), note, grip.type.name, grip.builtIn?.name ?: grip.presetKey?.let { k -> GripSpec.PRESET_PREFIX + k }, color?.toLong(), initials)
+                q.insertGrip(name, grip.edgeMm.toLong(), grip.fingerCount.toLong(), note, grip.type.name, grip.builtIn?.name ?: grip.presetKey?.let { k -> GripSpec.PRESET_PREFIX + k }, color, initials)
                 db.rehabGripQueries.lastId().executeAsOne()
             }
         } else {
-            q.updateGrip(name, grip.edgeMm.toLong(), grip.fingerCount.toLong(), note, grip.type.name, grip.colorIndex?.toLong(), initials, grip.id)
+            q.updateGrip(name, grip.edgeMm.toLong(), grip.fingerCount.toLong(), note, grip.type.name, grip.color, initials, grip.id)
             grip.id
         }
     }
@@ -69,6 +69,12 @@ class SqlGripRepository(private val db: RehabGripDatabase) : GripRepository {
         val havePresets = grips.mapNotNull { it.presetKey }.toSet()
         GripSpec.predefined().filter { if (it.builtIn != null) it.builtIn !in haveExercises else it.presetKey !in havePresets }
             .forEach { upsert(it) }
+        repairColors()
+    }
+
+    /** Invariant checked at start: no two grips share a colour. Duplicates and missing colours get the first free one. */
+    private suspend fun repairColors() = withContext(Dispatchers.IO) {
+        GripStyles.repairs(observeAll().first()).forEach { (id, color) -> q.updateGripColor(color, id) }
     }
 }
 

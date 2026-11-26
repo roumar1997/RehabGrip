@@ -172,3 +172,12 @@ nombre), editables en el formulario de agarre. Lógica en `core/domain/grip/Grip
 Superpuestas/Separadas, máx. 8 superpuestas). Gráfica: `designsystem/chart/GripChart.kt`.
 Derecha = círculo lleno y línea continua; izquierda = círculo claro, borde y línea discontinua al 55 %.
 Capturas en `docs/capturas/ronda9/`.
+
+### Ronda 9b: un color propio por agarre
+Paleta curada de 16 colores (ΔE mínimo 20, `GripColors.kt`) y, más allá, generador determinista
+(ángulo áureo, varía la luminosidad) que mantiene esa distancia con todos los usados. Los 8
+predefinidos (7 agarres + dinamómetro) conservan los suyos y quedan reservados. Un agarre propio
+coge el primer color libre; al arrancar (`ensureDefaults`) se reparan duplicados y colores vacíos
+(`GripStyles.repairs`). El editor tacha los usados con el nombre de su dueño, tiene «Elegir color»
+(matiz y luminosidad) y no deja guardar un color demasiado parecido. Superpuestas sigue limitado a 8
+por legibilidad. Columna nueva `color_argb` (migración 6.sqm). Capturas en `docs/capturas/ronda9b/`.

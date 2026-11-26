@@ -1,4 +1,4 @@
-package com.rehabgrip.feature.progress
+package com.rehabgrip.core.designsystem.components
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -22,15 +22,15 @@ import androidx.compose.ui.unit.sp
 import com.rehabgrip.core.domain.grip.GripStyle
 
 /** Colours and letters of a grip as Compose values; the same everywhere in Evolution. */
-internal class GripLook(val code: String, val color: Color, val tint: Color, val dark: Color) {
+class GripLook(val code: String, val color: Color, val tint: Color, val dark: Color, val onBase: Color = Color.White) {
     companion object {
-        fun of(s: GripStyle) = GripLook(s.code, Color(s.color.base), Color(s.color.tint), Color(s.color.dark))
+        fun of(s: GripStyle) = GripLook(s.code, Color(s.color.base), Color(s.color.tint), Color(s.color.dark), Color(s.color.onBase))
     }
 }
 
 /** The letters in a circle: filled with white letters = right hand; tinted with border and dark letters = left hand. */
 @Composable
-internal fun GripBadge(look: GripLook, right: Boolean = true, modifier: Modifier = Modifier) {
+fun GripBadge(look: GripLook, right: Boolean = true, modifier: Modifier = Modifier) {
     val fill = if (right) look.color else look.tint
     val border = if (right) null else BorderStroke(2.dp, look.color)
     Box(
@@ -40,7 +40,7 @@ internal fun GripBadge(look: GripLook, right: Boolean = true, modifier: Modifier
         contentAlignment = Alignment.Center,
     ) {
         Text(
-            look.code, color = if (right) Color.White else look.dark, fontWeight = FontWeight.Medium,
+            look.code, color = if (right) look.onBase else look.dark, fontWeight = FontWeight.Medium,
             fontSize = if (look.code.length >= 3) 9.sp else 11.sp, maxLines = 1,
         )
     }
@@ -48,7 +48,7 @@ internal fun GripBadge(look: GripLook, right: Boolean = true, modifier: Modifier
 
 /** Right (filled) and left (tinted) badge side by side. */
 @Composable
-internal fun GripBadges(look: GripLook, modifier: Modifier = Modifier) = Row(modifier, verticalAlignment = Alignment.CenterVertically) {
+fun GripBadges(look: GripLook, modifier: Modifier = Modifier) = Row(modifier, verticalAlignment = Alignment.CenterVertically) {
     GripBadge(look, true)
     GripBadge(look, false, Modifier.padding(start = 3.dp))
 }

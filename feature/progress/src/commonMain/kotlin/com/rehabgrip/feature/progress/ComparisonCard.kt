@@ -1,5 +1,7 @@
 package com.rehabgrip.feature.progress
 
+import com.rehabgrip.core.designsystem.components.GripLook
+import com.rehabgrip.core.designsystem.components.GripBadges
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box

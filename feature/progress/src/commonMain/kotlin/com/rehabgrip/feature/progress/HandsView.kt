@@ -1,5 +1,6 @@
 package com.rehabgrip.feature.progress
 
+import com.rehabgrip.core.designsystem.components.GripBadges
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -46,7 +47,7 @@ internal fun handLines(p: Picked, axis: DayAxis, index: Int, count: Int): List<G
         if (pts.isEmpty()) null
         else GripLineUi(
             code = p.look.code, gripName = p.name, handName = Labels.hand(hand), right = hand == Hand.RIGHT,
-            base = p.look.color, tint = p.look.tint, dark = p.look.dark,
+            base = p.look.color, tint = p.look.tint, dark = p.look.dark, onBase = p.look.onBase,
             points = pts.map { GripPointUi(axis.fraction(it.date), it.kg.toFloat(), it.date.short()) },
             gripIndex = index, gripCount = count,
         )

@@ -42,6 +42,7 @@ data class GripLineUi(
     val base: Color,
     val tint: Color,
     val dark: Color,
+    val onBase: Color,
     val points: List<GripPointUi>,
     val gripIndex: Int,
     val gripCount: Int,
@@ -155,7 +156,7 @@ private fun DrawScope.drawMarker(measurer: TextMeasurer, p: PlacedPoint, f: Fram
         drawCircle(l.base, f.radius, c, style = Stroke(2f * density))
     }
     val style = TextStyle(
-        color = if (l.right) Color.White else l.dark,
+        color = if (l.right) l.onBase else l.dark,
         fontSize = if (l.code.length >= 3) 9.sp else 11.sp, fontWeight = FontWeight.Medium,
     )
     val text = measurer.measure(l.code, style)

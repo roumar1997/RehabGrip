@@ -62,6 +62,7 @@ fun GripLibraryScreen(
     onEvaluate: (GripSpec) -> Unit,
 ) {
     var editing by remember { mutableStateOf<GripSpec?>(null) }
+    val styles = remember(rows) { com.rehabgrip.core.domain.grip.GripStyles.resolve(rows.map { it.grip }) }
     var deleting by remember { mutableStateOf<GripSpec?>(null) }
     Column(Modifier.fillMaxSize()) {
         RgTopBar("Mis agarres", onBack = onBack)
@@ -79,6 +80,7 @@ fun GripLibraryScreen(
             items(rows, key = { it.grip.id }) { row ->
                 RgCard(Modifier.fillMaxWidth()) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
+                        styles[row.grip.id]?.let { com.rehabgrip.core.designsystem.components.GripBadges(com.rehabgrip.core.designsystem.components.GripLook.of(it), Modifier.padding(end = 10.dp)) }
                         Column(Modifier.weight(1f)) {
                             Text(row.grip.label, style = MaterialTheme.typography.titleMedium, color = RgColors.Navy)
                             if (row.grip.name.isNotBlank()) {

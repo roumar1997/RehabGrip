@@ -59,8 +59,9 @@ fun GripEditorDialog(
     val draft = initial.copy(
         name = name.trim(), edgeMm = mm.toIntOrNull() ?: 0, fingerCount = count,
         fingerNote = if (GripSpec.fingerChoices(count).contains(which)) which else "", type = type,
-        colorIndex = color, initials = GripStyles.sanitize(letters),
+        color = color, initials = GripStyles.sanitize(letters),
     )
+    val colorConflict = GripStyles.conflict(color, library, initial.id)
     val problems = draft.validate()
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -99,15 +100,7 @@ fun GripEditorDialog(
                     letters, { letters = GripStyles.sanitize(it) }, label = { Text("Siglas (máx. 3)") }, singleLine = true,
                     placeholder = { Text(GripStyles.codeOf(draft.copy(initials = ""))) }, modifier = Modifier.fillMaxWidth(),
                 )
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    GripPalette.colors.forEachIndexed { i, c ->
-                        Box(
-                            Modifier.size(34.dp).clip(CircleShape).background(Color(c.base))
-                                .border(if (i == color) 3.dp else 0.dp, RgColors.Navy, CircleShape)
-                                .clickableNoRipple { color = i },
-                        )
-                    }
-                }
+                GripColorPicker(color, { color = it }, GripStyles.takenBy(library, initial.id), colorConflict)
                 Text(
                     problems.firstOrNull() ?: draft.label + if (draft.name.isNotBlank()) "  ·  ${draft.summary}" else "",
                     style = MaterialTheme.typography.bodySmall,
@@ -116,7 +109,7 @@ fun GripEditorDialog(
                 )
             }
         },
-        confirmButton = { TextButton(onClick = { onSave(draft) }, enabled = problems.isEmpty()) { Text("Guardar") } },
+        confirmButton = { TextButton(onClick = { onSave(draft) }, enabled = problems.isEmpty() && colorConflict == null) { Text("Guardar") } },
         dismissButton = {
             Column {
                 if (onDelete != null) TextButton(onClick = onDelete) { Text("Borrar", color = RgColors.Danger) }

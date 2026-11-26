@@ -1,0 +1,2 @@
+-- v6 -> v7: every grip has its own colour, stored as ARGB (color_index of v6 is no longer used).
+ALTER TABLE custom_grip ADD COLUMN color_argb INTEGER;

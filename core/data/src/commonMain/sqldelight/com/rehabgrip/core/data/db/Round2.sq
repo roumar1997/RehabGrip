@@ -24,6 +24,7 @@ CREATE TABLE custom_grip (
     finger_count INTEGER NOT NULL DEFAULT 4,
     built_in TEXT,
     color_index INTEGER,
+    color_argb INTEGER,
     initials TEXT NOT NULL DEFAULT ''
 );
 
@@ -108,10 +109,13 @@ selectGrips:
 SELECT * FROM custom_grip ORDER BY id;
 
 insertGrip:
-INSERT INTO custom_grip(name, edge_mm, finger_count, fingers, type, built_in, color_index, initials) VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+INSERT INTO custom_grip(name, edge_mm, finger_count, fingers, type, built_in, color_argb, initials) VALUES (?, ?, ?, ?, ?, ?, ?, ?);
 
 updateGrip:
-UPDATE custom_grip SET name = ?, edge_mm = ?, finger_count = ?, fingers = ?, type = ?, color_index = ?, initials = ? WHERE id = ?;
+UPDATE custom_grip SET name = ?, edge_mm = ?, finger_count = ?, fingers = ?, type = ?, color_argb = ?, initials = ? WHERE id = ?;
+
+updateGripColor:
+UPDATE custom_grip SET color_argb = ? WHERE id = ?;
 
 replaceGripInSets:
 UPDATE workout_set SET grip_custom_id = ?, grip_exercise = NULL WHERE grip_custom_id = ?;
