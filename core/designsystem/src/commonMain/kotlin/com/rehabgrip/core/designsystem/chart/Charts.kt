@@ -51,7 +51,7 @@ fun LineChart(series: List<ChartSeries>, xLabels: List<String>, modifier: Modifi
 
         drawYGrid(measurer, yMin, yMax, left, right, ::y)
         xLabels.forEachIndexed { i, label ->
-            val f = if (xLabels.size == 1) 0f else i / (xLabels.size - 1f)
+            val f = if (xLabels.size == 1) 0.5f else i / (xLabels.size - 1f)
             val layout = measurer.measure(label, axisStyle)
             val tx = (x(f) - layout.size.width / 2f).coerceIn(0f, size.width - layout.size.width)
             drawText(layout, topLeft = Offset(tx, bottom + 4.dp2px(this)))
@@ -69,9 +69,12 @@ fun LineChart(series: List<ChartSeries>, xLabels: List<String>, modifier: Modifi
                 path, s.color,
                 style = Stroke(3.dp2px(this), cap = StrokeCap.Round, join = StrokeJoin.Round, pathEffect = if (s.dashed) PathEffect.dashPathEffect(floatArrayOf(16f, 12f)) else null),
             )
+            // Few points (one or two days): big dots with a coloured border so they stay clear.
+            val big = s.points.size <= 3
             s.points.forEach { (fx, v) ->
-                drawCircle(Color.White, 5.dp2px(this), Offset(x(fx), y(v)))
-                drawCircle(s.color, 3.5f.dp2px(this), Offset(x(fx), y(v)))
+                if (big) drawCircle(s.color, 9.dp2px(this), Offset(x(fx), y(v)))
+                drawCircle(Color.White, (if (big) 6.5f else 5f).dp2px(this), Offset(x(fx), y(v)))
+                drawCircle(s.color, (if (big) 4.5f else 3.5f).dp2px(this), Offset(x(fx), y(v)))
             }
         }
     }

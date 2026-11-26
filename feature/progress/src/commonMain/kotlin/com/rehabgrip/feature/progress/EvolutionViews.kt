@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -105,8 +106,9 @@ internal fun ByHandView(picked: List<Picked>, injury: Injury) {
             LineChart(series, labels, Modifier.fillMaxWidth().height(230.dp))
         }
         Legend(picked)
+        if (picked.isNotEmpty() && hasSingleDay(picked.flatMap { listOf(it.summary.right.points, it.summary.left.points) })) OneDayText()
     }
-    SummaryTable(picked, injury)
+    picked.forEach { ComparisonCard(it.summary, injury, dotColor = it.color, showSeries = false) }
 }
 
 @Composable
@@ -171,6 +173,7 @@ internal fun CompareView(picked: List<Picked>, injury: Injury) {
             val (pts, labels) = axis
             LineChart(picked.mapIndexed { i, p -> ChartSeries(p.color, pts[i]) }, labels, Modifier.fillMaxWidth().height(220.dp), referenceY = 100f)
             Text("Línea de puntos = 100 % (igual de fuertes)", style = MaterialTheme.typography.labelSmall, color = RgColors.TextSecondary)
+            if (hasSingleDay(lists)) OneDayText()
         }
         picked.forEach { p ->
             val pct = p.summary.symmetryPercent(focus)
@@ -182,6 +185,47 @@ internal fun CompareView(picked: List<Picked>, injury: Injury) {
                 }
                 SymmetryBar(pct, Modifier.fillMaxWidth().height(10.dp))
             }
+        }
+    }
+}
+
+/** True when everything drawn sits on one single day (a line needs two). */
+internal fun hasSingleDay(series: List<List<com.rehabgrip.core.domain.progress.DayPoint>>): Boolean =
+    series.flatten().map { it.date }.distinct().size == 1
+
+@Composable
+internal fun OneDayText() =
+    Text("Solo hay un día de datos: registra otro día para ver la línea", style = MaterialTheme.typography.bodySmall, color = RgColors.Warning, modifier = Modifier.padding(top = 6.dp))
+
+@Composable
+private fun OneDayNotice(picked: List<Picked>) = Unit
+
+/** Compare: the two hands of ONE grip (right solid and strong, left soft and dashed); chips pick the grip when several are chosen. */
+@Composable
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+internal fun TwoHandsMini(picked: List<Picked>) {
+    if (picked.isEmpty()) return
+    var chosenId by remember { mutableStateOf(picked.first().id) }
+    val p = picked.firstOrNull { it.id == chosenId } ?: picked.first()
+    RgCard(Modifier.fillMaxWidth()) {
+        Text("Las dos manos · kilos", style = MaterialTheme.typography.titleMedium, color = RgColors.Navy)
+        if (picked.size > 1) {
+            androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(vertical = 6.dp)) {
+                picked.forEach { q -> com.rehabgrip.core.designsystem.components.GripChip(q.name, q.id == p.id) { chosenId = q.id } }
+            }
+        } else {
+            Text(p.name, style = MaterialTheme.typography.bodySmall, color = RgColors.TextSecondary)
+        }
+        val axis = ChartAxis.fractions(listOf(p.summary.right.points, p.summary.left.points))
+        if (axis == null) {
+            Text("Sin registros en este periodo", color = RgColors.TextSecondary, style = MaterialTheme.typography.bodyMedium)
+        } else {
+            LineChart(
+                listOf(ChartSeries(p.color, axis.first[0]), ChartSeries(p.color.copy(alpha = 0.5f), axis.first[1], dashed = true)),
+                axis.second, Modifier.fillMaxWidth().height(170.dp),
+            )
+            Text("Derecha sólida · izquierda suave y discontinua", style = MaterialTheme.typography.labelSmall, color = RgColors.TextSecondary)
+            if (hasSingleDay(listOf(p.summary.right.points, p.summary.left.points))) OneDayText()
         }
     }
 }

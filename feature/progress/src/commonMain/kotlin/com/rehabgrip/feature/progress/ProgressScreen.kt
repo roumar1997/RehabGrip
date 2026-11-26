@@ -114,6 +114,7 @@ fun ProgressScreen(
                 ProgressView.HANDS -> ByHandView(picked, injury)
                 ProgressView.COMPARE -> {
                     CompareView(picked, injury)
+                    TwoHandsMini(picked)
                     picked.forEach { ComparisonCard(it.summary, injury) }
                 }
                 ProgressView.DISCOMFORT -> DiscomfortView(measurements, range, nowMillis)
@@ -224,20 +225,26 @@ internal class ChartAxis(val right: List<Pair<Float, Float>>, val left: List<Pai
             val last = days.max()
             val span = (last.toEpochDays() - first.toEpochDays()).coerceAtLeast(1)
             fun pts(p: HandProgress) = p.points.map { ((it.date.toEpochDays() - first.toEpochDays()).toFloat() / span) to it.kg.toFloat() }
-            val labels = (0..3).map { i -> LocalDate.fromEpochDays(first.toEpochDays() + span * i / 3).short() }
+            val labels = tickLabels(first, last.toEpochDays() - first.toEpochDays())
             return ChartAxis(pts(s.right), pts(s.left), labels)
         }
 
-        /** Generic: x fraction from the first to the last date among [series]. */
+        /**
+         * Generic: x fraction from the first to the last date among [series]. Axis labels are unique and
+         * readable: as many distinct days as fit (at most 4); a single day gives one label and a centred point.
+         */
         fun fractions(series: List<List<DayPoint>>): Pair<List<List<Pair<Float, Float>>>, List<String>>? {
             val days = series.flatten().map { it.date }
             if (days.isEmpty()) return null
             val first = days.min()
-            val span = (days.max().toEpochDays() - first.toEpochDays()).coerceAtLeast(1)
-            val pts = series.map { s -> s.map { ((it.date.toEpochDays() - first.toEpochDays()).toFloat() / span) to it.kg.toFloat() } }
-            val labels = (0..3).map { i -> LocalDate.fromEpochDays(first.toEpochDays() + span * i / 3).short() }
-            return pts to labels
+            val span = days.max().toEpochDays() - first.toEpochDays()
+            val pts = series.map { s -> s.map { (if (span == 0) 0.5f else (it.date.toEpochDays() - first.toEpochDays()).toFloat() / span) to it.kg.toFloat() } }
+            return pts to tickLabels(first, span)
         }
+
+        /** Distinct labels: min(4, days) ticks evenly spread over the span. */
+        fun tickLabels(first: LocalDate, span: Int): List<String> =
+            com.rehabgrip.core.domain.progress.AxisTicks.days(first, span).map { it.short() }
 
         private fun LocalDate.short() = "${dayOfMonth}/${monthNumber}"
     }
