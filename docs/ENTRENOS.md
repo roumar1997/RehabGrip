@@ -125,3 +125,26 @@ Inicio y Entrenos → «Medir»: valor actual, MÁXIMO que se mantiene, intentos
 los últimos). «Guardar»: agarre (biblioteca + dinamómetro), mano y nombre. Perfil → «Mis máximos» (mejor valor por
 agarre y mano, evaluaciones y mediciones propias) y «Registros de amigos» aparte (`MaxRecords`;
 `Measurement.person`, vacío = propio). Los amigos no entran en Evolución, Historial ni Inicio.
+
+## Ronda 6
+- **Cambio de mano**: ajustes de la sesión → «Cambio de mano» (0–10 s, 3 por defecto). Al acabar el tirón de una mano
+  sale «Cambia a IZQUIERDA · 3…2…1» (no corre tiempo de tirar). Después, la mano a la que le toca espera tanto como
+  haga falta: esperar NUNCA cuenta como fallo y no se fuerzan turnos; en cuanto tira, es la mano en turno. El descanso
+  de cada mano cuenta desde el final de SU tirón. Tests: `HandoverTest`.
+- **Una sola lectura de los registros**: Inicio, Evolución, Mis máximos e Historial usan `GripKey` (agarre de la
+  biblioteca por `gripId`; si ese agarre ya no existe, el predefinido de su ejercicio; si no, el ejercicio suelto).
+  `CoherenceTest` mezcla registros manuales, de evaluación, de entreno y huérfanos y exige que todas las pantallas
+  coincidan.
+- **Historial**: una fila por día y agarre con las dos manos («Dcha 13,0 · Izda 31,5 kg»); tocar abre «Editar» (fecha
+  para las dos manos, kilos de cada mano, «Avanzado… Mover a la otra mano», borrar por mano). Varios registros el mismo
+  día: fila expandible.
+- **Evolución**: «Por mano» (varios agarres a la vez con casillas, derecha sólida y izquierda suave y discontinua,
+  leyenda y tabla por agarre) y «Comparar» (% lesionada/sana en el tiempo con la línea del 100 % y barras).
+- **Inicio**: saludo → Medir ahora → Entrenar (Entreno de agarre) → ejercicios → «Lesionada respecto a sana» plegable.
+- **CSV** (UTF-8 con BOM, «;», decimal con coma), ordenado por fecha, `rehagrip-AAAA-MM-DD.csv`. Ejemplo:
+
+```
+Fecha;Hora;Ejercicio;Agarre;Regleta (mm);Mano;Mano lesionada;Kilos;Origen;Persona;Molestias;Nota
+1970-01-03;00:00;Extensión;Extensión 3 dedos;20;Derecha;Sí;13,0;Entreno;Pepe;Polea A2 2/10;Entreno «Repeticiones»
+1970-01-06;01:00;Extensión;Extensión 3 dedos;20;Izquierda;No;31,5;Evaluación;;;Evaluación · Extensión 3 dedos
+```

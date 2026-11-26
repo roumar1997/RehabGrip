@@ -75,3 +75,31 @@ la opción por defecto en debug, para poder probar en el emulador.
   «Simulada contaminada» mezcla otro dispositivo (87 kg) y picos de 97,9 kg: no llegan a la gráfica.
 - Diagnóstico: «Copiar» por dispositivo, «Copiar todo», «Grabar» 30 s (payloads distintos, veces, peso, saltos).
 - La señal («Báscula IF_B7 · -55 dBm · N lecturas/s») sale de `SignalMonitor` en todas las pantallas con báscula.
+
+## Ronda 6: fluidez de las lecturas (causa de nuestro lado)
+FREZ lee la misma WH-C06 con fluidez en el mismo iPhone, así que la cadencia es un problema nuestro, no del aparato.
+Dato de partida: Medir mostraba 3 lecturas/s y el diagnóstico 6,3 anuncios/s de la misma IF_B7.
+Revisado y corregido:
+- **Cola del delegado** (iOS): `CBCentralManager` usaba la cola principal; ahora corre en una cola serie propia
+  (`com.rehabgrip.ble.scan`) y el callback hace lo mínimo (decodificar y publicar).
+- **Vigilante del escaneo** (iOS): `lastPacketAt` empezaba en 0, así que el vigilante de 2 s relanzaba el escaneo hasta
+  el primer paquete. Ahora se inicializa al arrancar y no reinicia mientras llegan anuncios.
+- **Pérdida por desbordamiento**: el flujo de lecturas tenía 64 huecos y descartaba lo nuevo si el colector iba lento;
+  ahora son 256 y se descarta lo más antiguo.
+- **Cuenta del diagnóstico**: los «6,3 anuncios/s» incluían anuncios sin manufacturer data (respuestas de escaneo).
+  Ahora cada dispositivo muestra «con datos N/s» aparte. Hipótesis a confirmar con la báscula real: iOS entrega 2
+  callbacks por ciclo y solo uno lleva el peso.
+- **Contadores por etapa** (`ScalePipeline.stats`, visibles en Diagnóstico → Grabar): recibidas, del dispositivo
+  bloqueado, decodificadas, retenidas por el filtro de saltos y aceptadas; más «Tipos de trama» (primeros 10 bytes + longitud)
+  por si la báscula alterna tipos y el decodificador descarta alguno.
+- `SignalMonitor` cuenta TODAS las lecturas recibidas, también las de valor repetido.
+- **Latencia visual**: retardo adaptativo = 1× el intervalo mediano entre muestras (60–180 ms) con `EdgeSampler`; la línea
+  llega hasta el borde derecho y, si el flujo se corta, mantiene el último valor sin inventar picos. El número grande se
+  dibuja dentro de la gráfica con el valor de ese mismo borde y el mismo instante.
+
+Pendiente de medir en el iPhone: con la cola propia y el vigilante corregido, cuántas lecturas/s dice Medir frente a los
+contadores del diagnóstico.
+
+## Varias básculas
+Perfil → «Mis básculas»: lista de básculas conocidas (se guardan al elegirlas o al autoseleccionarse) con nombre propio
+editable, «Usar esta» y «Olvidar». Solo una está activa (la que bloquea `DeviceLock`); su nombre sale en las cabeceras.
