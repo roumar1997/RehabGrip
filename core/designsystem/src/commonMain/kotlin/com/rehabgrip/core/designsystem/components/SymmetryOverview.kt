@@ -21,7 +21,12 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.rounded.ExpandLess
+import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -80,11 +85,19 @@ fun SymmetryOverview(
     nowMillis: Long,
     modifier: Modifier = Modifier,
     grips: List<GripSpec> = emptyList(),
+    collapsible: Boolean = false,
     onRow: ((SymmetryRow) -> Unit)? = null,
 ) {
-    val rows = remember(measurements, injury, grips) { symmetryRows(measurements, injury, ProgressRange.ALL, nowMillis, grips) }
+    val allRows = remember(measurements, injury, grips) { symmetryRows(measurements, injury, ProgressRange.ALL, nowMillis, grips) }
+    var open by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(true) }
+    var showAll by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
+    val rows = if (collapsible && !showAll) allRows.filter { it.percent != null || it.rightKg != null || it.leftKg != null } else allRows
     RgCard(modifier.fillMaxWidth()) {
-        Text(InjuryLabels.comparisonTitle(injury), style = MaterialTheme.typography.titleMedium, color = RgColors.Navy)
+        Row(Modifier.fillMaxWidth().let { if (collapsible) it.clickableNoRipple { open = !open } else it }, verticalAlignment = Alignment.CenterVertically) {
+            Text(InjuryLabels.comparisonTitle(injury), style = MaterialTheme.typography.titleMedium, color = RgColors.Navy, modifier = Modifier.weight(1f))
+            if (collapsible) Icon(if (open) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore, null, tint = RgColors.TextSecondary)
+        }
+        if (collapsible && !open) return@RgCard
         Text(
             percentMeaning(injury),
             style = MaterialTheme.typography.bodySmall, color = RgColors.TextSecondary,
@@ -105,6 +118,11 @@ fun SymmetryOverview(
                     style = MaterialTheme.typography.bodySmall, color = RgColors.TextSecondary, modifier = Modifier.padding(top = 3.dp),
                 )
             }
+        }
+        if (collapsible && !showAll && allRows.size > rows.size) {
+            androidx.compose.material3.TextButton(onClick = { showAll = true }) { Text("Ver todos los agarres") }
+        } else if (collapsible && showAll) {
+            androidx.compose.material3.TextButton(onClick = { showAll = false }) { Text("Solo los que tienen datos") }
         }
     }
 }

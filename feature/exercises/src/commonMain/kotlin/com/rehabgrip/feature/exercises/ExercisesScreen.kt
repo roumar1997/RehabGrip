@@ -1,6 +1,11 @@
 package com.rehabgrip.feature.exercises
 
 import androidx.compose.material.icons.rounded.Speed
+import androidx.compose.material.icons.rounded.PlayArrow
+import com.rehabgrip.core.domain.grip.GripKey
+import com.rehabgrip.core.domain.workout.WorkoutResultEntry
+import com.rehabgrip.core.domain.workout.WorkoutTemplate
+import com.rehabgrip.core.designsystem.components.formatRecordDay
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -54,6 +59,10 @@ fun ExercisesScreen(
     grips: List<GripSpec> = emptyList(),
     onGrip: (GripSpec) -> Unit = {},
     onMeter: () -> Unit = {},
+    /** The default session offered on Home (null = none). */
+    trainTemplate: WorkoutTemplate? = null,
+    lastWorkout: WorkoutResultEntry? = null,
+    onTrain: (WorkoutTemplate) -> Unit = {},
 ) {
     Column(Modifier.fillMaxSize()) {
         RgTopBar("Mis ejercicios")
@@ -73,8 +82,22 @@ fun ExercisesScreen(
                     "Medir ahora", onMeter, icon = androidx.compose.material.icons.Icons.Rounded.Speed, subtitle = "Prueba la báscula sin entreno",
                 )
             }
-            if (measurements.isNotEmpty()) {
-                item { SymmetryOverview(measurements, injury, nowMillis, grips = grips, onRow = { r -> r.exercise?.let(onExercise) ?: r.grip?.let(onGrip) }) }
+            trainTemplate?.let { t ->
+                item {
+                    RgCard(Modifier.fillMaxWidth()) {
+                        Text("Entrenar", style = MaterialTheme.typography.titleMedium, color = RgColors.Navy)
+                        Text(t.name, style = MaterialTheme.typography.titleSmall, color = RgColors.Primary)
+                        Text(
+                            lastWorkout?.let { "Último: ${formatRecordDay(it.epochMillis).take(5)} · máx " + (it.hands.maxOfOrNull { h -> h.maxKg }?.let { kg -> formatKg(kg) + " kg" } ?: "—") }
+                                ?: "Todavía sin entrenos hechos",
+                            style = MaterialTheme.typography.bodySmall, color = RgColors.TextSecondary,
+                        )
+                        com.rehabgrip.core.designsystem.components.RgPrimaryButton(
+                            "EMPEZAR", { onTrain(t) }, Modifier.padding(top = 10.dp),
+                            icon = androidx.compose.material.icons.Icons.Rounded.PlayArrow,
+                        )
+                    }
+                }
             }
             item {
                 Text(
@@ -85,7 +108,10 @@ fun ExercisesScreen(
                 )
             }
             items(Exercise.selectable) { exercise ->
-                ExerciseCard(exercise, measurements.filter { it.exercise == exercise }, injury) { onExercise(exercise) }
+                ExerciseCard(exercise, measurements.filter { GripKey.exerciseOf(it, grips) == exercise }, injury) { onExercise(exercise) }
+            }
+            if (measurements.isNotEmpty()) {
+                item { SymmetryOverview(measurements, injury, nowMillis, grips = grips, collapsible = true, onRow = { r -> r.exercise?.let(onExercise) ?: r.grip?.let(onGrip) }) }
             }
         }
     }

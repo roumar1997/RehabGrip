@@ -30,6 +30,9 @@ internal fun TabContent(tab: Tab, container: AppContainer, navigator: Navigator,
             onExercise = { navigator.push(Route.Training(it)) },
             grips = data.grips,
             onGrip = { navigator.push(Route.GripEvaluate(it)) },
+            trainTemplate = data.workouts.firstOrNull { it.name == WorkoutTemplate.GRIP_SESSION_NAME } ?: data.workouts.firstOrNull(),
+            lastWorkout = data.workoutResults.firstOrNull { r -> r.name == (data.workouts.firstOrNull { it.name == WorkoutTemplate.GRIP_SESSION_NAME } ?: data.workouts.firstOrNull())?.name },
+            onTrain = { t -> scope.launch { if (data.simulated || container.platform.ensureBluetoothPermission()) navigator.push(Route.WorkoutRun(t)) } },
             onMeter = { scope.launch { if (data.simulated || container.platform.ensureBluetoothPermission()) navigator.push(Route.Meter) } },
         )
         Tab.PROGRESS -> ProgressScreen(data.measurements, container.now(), session.injury, data.grips)
