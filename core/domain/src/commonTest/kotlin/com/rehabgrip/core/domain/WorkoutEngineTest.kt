@@ -121,15 +121,78 @@ class WorkoutEngineTest {
     }
 
     @Test
-    fun droppingBelowThresholdForTooLongMarksFailureAndGoesToRest() {
+    fun droppingBelowThresholdNeverFailsWhenToFailureIsOff() {
         val set = WorkoutSet(reps = 2, workSeconds = 5, restSeconds = 10, thresholdKg = 5.0)
         val e = WorkoutEngine(tpl(set), prepareMs = 0)
         e.run(1_000, 10.0)
-        e.run(1_700, 1.0) // more than 1.5 s under the threshold
-        val first = e.snapshot().results.single()
-        assertTrue(first.failed)
+        e.run(20_000, 1.0) // released for 20 s: the counter just waits
+        assertEquals(EnginePhase.PULL, e.snapshot().phase)
+        assertTrue(e.snapshot().results.isEmpty(), "no failure, no rest, no next rep")
+        assertEquals(1, e.snapshot().slot!!.rep)
+    }
+
+    @Test
+    fun pullingThreeSecondsAndReleasingDoesNotAdvance() {
+        val set = WorkoutSet(reps = 1, workSeconds = 10, restSeconds = 5, thresholdKg = 2.0)
+        val e = WorkoutEngine(tpl(set, WorkoutSet(reps = 1, workSeconds = 10, restSeconds = 5)), prepareMs = 0)
+        e.run(3_100, 20.0)
+        e.run(20_000, 0.0)
+        assertEquals(EnginePhase.PULL, e.snapshot().phase)
+        assertEquals(0, e.snapshot().slot!!.setIndex, "still the first grip")
+        assertTrue(e.snapshot().displayMs in 6_000..7_200)
+    }
+
+    @Test
+    fun releasingAndPullingAgainAddsUpToTheFullWorkTime() {
+        val set = WorkoutSet(reps = 1, workSeconds = 10, restSeconds = 5, thresholdKg = 2.0)
+        val e = WorkoutEngine(tpl(set), prepareMs = 0)
+        e.run(3_100, 20.0)
+        e.run(5_000, 0.0)
+        e.run(3_100, 20.0)
+        assertEquals(EnginePhase.PULL, e.snapshot().phase, "6 s above the threshold so far")
+        e.run(4_200, 20.0)
+        assertEquals(EnginePhase.DONE, e.snapshot().phase)
+        assertFalse(e.snapshot().results.single().failed)
+    }
+
+    @Test
+    fun skipEndsThePullAndStartsTheRest() {
+        val set = WorkoutSet(reps = 2, workSeconds = 10, restSeconds = 5)
+        val e = WorkoutEngine(tpl(set), prepareMs = 0)
+        e.run(2_000, 20.0)
+        e.skipTurn()
+        assertTrue(e.snapshot().results.single().skipped)
         assertEquals(EnginePhase.REST, e.snapshot().phase)
-        assertEquals(2, e.snapshot().slot!!.rep, "plain sets continue with the next rep")
+        assertEquals(2, e.snapshot().slot!!.rep)
+    }
+
+    @Test
+    fun failureOnlyExistsWithToFailureOnAndAfterOneAndAHalfSecondsBelow() {
+        fun failed(mode: ToFailure): Boolean {
+            val set = WorkoutSet(reps = 3, workSeconds = 5, restSeconds = 1, toFailure = mode, thresholdKg = 5.0)
+            val e = WorkoutEngine(tpl(set), prepareMs = 0)
+            e.run(1_000, 10.0)
+            e.run(1_400, 1.0) // 1.4 s below: still no failure
+            assertTrue(e.snapshot().results.isEmpty() || mode == ToFailure.TIME && e.snapshot().results.none { it.failed })
+            e.run(400, 1.0) // past 1.5 s
+            return e.snapshot().results.any { it.failed }
+        }
+        assertFalse(failed(ToFailure.OFF))
+        assertTrue(failed(ToFailure.REPS))
+        assertFalse(failed(ToFailure.TIME), "in Tiempo mode the end is the normal one, not a failure")
+    }
+
+    @Test
+    fun otherHandsRestAndTurnWaitWhileThePullIsHeldBelowTheThreshold() {
+        val set = WorkoutSet(reps = 2, workSeconds = 4, restSeconds = 3, thresholdKg = 5.0)
+        val e = WorkoutEngine(tpl(set, mode = HandMode.ALTERNATING), prepareMs = 0)
+        e.run(2_000, 20.0) // first hand pulls 2 s of 4
+        val before = e.snapshot()
+        e.run(10_000, 0.0) // released for 10 s
+        val after = e.snapshot()
+        assertEquals(before.slot, after.slot, "same hand, same turn")
+        assertEquals(EnginePhase.PULL, after.phase)
+        assertEquals(before.displayMs, after.displayMs)
     }
 
     @Test

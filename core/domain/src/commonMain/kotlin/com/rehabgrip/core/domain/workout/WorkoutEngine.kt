@@ -86,8 +86,12 @@ class WorkoutEngine(
             countdown(prepareLeft, events)
             if (prepareLeft > 0) return events
         } else {
-            rest.keys.forEach { h -> rest[h] = (rest.getValue(h) - dtMs).coerceAtLeast(0) }
-            handoverLeft = (handoverLeft - dtMs).coerceAtLeast(0)
+            // While a pull is held below the threshold everything waits: no rest, no hand change, no turn.
+            val holding = pulling && current?.let { kg < setOf(it).thresholdKg } == true
+            if (!holding) {
+                rest.keys.forEach { h -> rest[h] = (rest.getValue(h) - dtMs).coerceAtLeast(0) }
+                handoverLeft = (handoverLeft - dtMs).coerceAtLeast(0)
+            }
         }
         val slot = current ?: return events
         val set = setOf(slot)
@@ -109,7 +113,9 @@ class WorkoutEngine(
             events += EngineEvent.PullStarted(slot)
             return events
         }
-        // Work time only counts while pulling at or above the threshold.
+        // Work time is cumulative and only runs while the force is at or above the threshold. Below it the
+        // counter just stops and waits: it is not a failure, there is no rest and nothing changes.
+        // The rep ends when the time above the threshold reaches the configured work time (or with «Saltar»).
         val above = kg >= set.thresholdKg
         if (above) {
             pullMs += dtMs
@@ -129,10 +135,7 @@ class WorkoutEngine(
                     dropRemainingReps(slot)
                 }
             }
-            ToFailure.OFF -> when {
-                pullMs >= workMs -> endPull(slot, failed = false, events)
-                dropped -> endPull(slot, failed = true, events) // «Parada: fallo», on to the rest
-            }
+            ToFailure.OFF -> if (pullMs >= workMs) endPull(slot, failed = false, events) // never an automatic failure
         }
         if (current == null && events.none { it is EngineEvent.Finished }) events += EngineEvent.Finished
         return events
@@ -141,7 +144,17 @@ class WorkoutEngine(
     /** Gives up the current turn (only when not pulling). The other hand is next. */
     fun skipTurn(): List<EngineEvent> {
         val slot = current ?: return emptyList()
-        if (pulling) return emptyList()
+        if (pulling) {
+            // «Saltar» during TIRA: the rep ends as skipped (with what was pulled) and its rest starts.
+            results += RepResult(slot, peak, pullMs, skipped = true)
+            pulling = false
+            belowMs = 0
+            pullMs = 0
+            index++
+            rest[slot.hand] = if (current == null) 0 else setOf(slot).restSeconds * 1000L
+            handoverLeft = if (current != null && current!!.hand != slot.hand) handoverMs else 0L
+            return listOfNotNull(EngineEvent.TurnSkipped(slot), if (current == null) EngineEvent.Finished else null)
+        }
         results += RepResult(slot, 0.0, 0, skipped = true)
         index++
         handoverLeft = 0

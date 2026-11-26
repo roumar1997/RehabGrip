@@ -98,7 +98,9 @@ class SimulatedForceSource(
     /** Follows the workout: rises right after each «Tira», drops to zero when resting. */
     internal fun drivenValue(t: Long): Double {
         val since = (t - effortStartMs).coerceAtLeast(0)
-        val base = if (effort) {
+        // Debug («contaminada»): the user lets go between 3 s and 7 s of every pull and then pulls again.
+        val letGo = contaminated && effort && since in 3_000L..7_000L
+        val base = if (letGo) 0.0 else if (effort) {
             val ramp = easeOut((since.toDouble() / RAMP_MS).coerceAtMost(1.0))
             val fade = 1.0 - 0.1 * (since.toDouble() / 10_000).coerceAtMost(1.0)
             pullPeak * ramp * fade * (1.0 + 0.02 * sin(since / 400.0))

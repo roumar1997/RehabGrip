@@ -24,6 +24,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -73,6 +76,7 @@ fun WorkoutRunScreen(
         },
     )
     val set = slot?.let { template.sets[it.setIndex] }
+    var confirmSkip by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxSize()) {
         RgTopBar(
             if (slot == null) "Completado" else "Serie ${slot.setIndex + 1}/${template.sets.size} · Rep ${slot.rep}/${template.sets[slot.setIndex].reps}",
@@ -144,12 +148,22 @@ fun WorkoutRunScreen(
                     onTogglePause, Modifier.weight(1f),
                 )
                 RgStackedButton(
-                    "Saltar", Icons.Rounded.SkipNext, onSkip, Modifier.weight(1f),
-                    color = RgColors.Navy, enabled = phase != EnginePhase.PULL && phase != EnginePhase.PREPARE,
+                    "Saltar", Icons.Rounded.SkipNext, { confirmSkip = true }, Modifier.weight(1f),
+                    color = RgColors.Navy, enabled = phase != EnginePhase.PREPARE,
                 )
                 RgStackedButton("Fin", Icons.Rounded.Stop, onFinish, Modifier.weight(1f), color = RgColors.Danger)
             }
         }
+    }
+    if (confirmSkip) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { confirmSkip = false },
+            containerColor = RgColors.Background,
+            title = { Text(if (phase == EnginePhase.PULL) "¿Dar por hecho este tirón?" else "¿Saltar?") },
+            text = { Text(if (phase == EnginePhase.PULL) "Pasa al descanso aunque no hayas completado el tiempo." else "Pasa a la siguiente fase.") },
+            confirmButton = { androidx.compose.material3.TextButton(onClick = { confirmSkip = false; onSkip() }) { Text("Saltar") } },
+            dismissButton = { androidx.compose.material3.TextButton(onClick = { confirmSkip = false }) { Text("Seguir") } },
+        )
     }
 }
 
