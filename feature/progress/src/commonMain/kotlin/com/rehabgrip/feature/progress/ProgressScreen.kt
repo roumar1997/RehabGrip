@@ -70,14 +70,27 @@ fun ProgressScreen(
     injury: Injury = Injury.NONE,
     grips: List<GripSpec> = emptyList(),
 ) {
-    var selectedId by rememberSaveable { mutableStateOf(0L) }
+    // Grips shown together, kept as "1,2,-1" so it survives rotation; empty = the first ones with data.
+    var selectedText by rememberSaveable { mutableStateOf("") }
     var range by rememberSaveable { mutableStateOf(ProgressRange.ALL) }
-    var view by rememberSaveable { mutableStateOf(ProgressView.COMPARE) }
+    var view by rememberSaveable { mutableStateOf(ProgressView.HANDS) }
     val calculator = remember { ProgressCalculator() }
-    val grip = if (selectedId == DYNAMOMETER_ID) null else grips.firstOrNull { it.id == selectedId } ?: grips.firstOrNull()
-    val summary = remember(measurements, grip, range, nowMillis) {
-        if (grip != null) calculator.summarizeGrip(measurements, grip, range, nowMillis)
-        else calculator.summarize(measurements, Exercise.DYNAMOMETER, range, nowMillis)
+    val options = remember(grips) { grips.map { it.id to it.label } + (DYNAMOMETER_ID to dynamometerName()) }
+    val colorIndex = { id: Long -> options.indexOfFirst { it.first == id }.coerceAtLeast(0) }
+    val selected: Set<Long> = remember(selectedText, measurements, grips) {
+        val chosen = selectedText.split(',').mapNotNull { it.toLongOrNull() }.filter { id -> options.any { it.first == id } }.toSet()
+        if (selectedText.isNotEmpty()) chosen
+        else {
+            val withData = grips.filter { g -> measurements.any { m -> g.matches(m, grips) } }.map { it.id }
+            (withData.ifEmpty { grips.map { it.id } }).take(2).toSet()
+        }
+    }
+    val picked = remember(measurements, selected, range, nowMillis, grips) {
+        options.filter { it.first in selected }.map { (id, name) ->
+            val summary = if (id == DYNAMOMETER_ID) calculator.summarize(measurements, Exercise.DYNAMOMETER, range, nowMillis)
+            else calculator.summarizeGrip(measurements, grips.first { it.id == id }, range, nowMillis, grips)
+            Picked(id, name, paletteColor(colorIndex(id)), summary)
+        }
     }
     Column(Modifier.fillMaxSize()) {
         RgTopBar("Evolución", leadingIcon = Icons.Rounded.BarChart)
@@ -91,19 +104,17 @@ fun ProgressScreen(
                 label = { when (it) { ProgressRange.WEEK -> "7d"; ProgressRange.FOUR_WEEKS -> "4s"; ProgressRange.TWELVE_WEEKS -> "12s"; ProgressRange.ALL -> "Todo" } },
                 onSelect = { range = it },
             )
-            when (view) {
-                ProgressView.COMPARE -> {
-                    SymmetryOverview(measurements, injury, nowMillis, grips = grips, onRow = { selectedId = it.grip?.id ?: DYNAMOMETER_ID })
-                    GripPicker(grips, grip, selectedId == DYNAMOMETER_ID) { selectedId = it }
-                    ComparisonCard(summary, injury)
+            if (view != ProgressView.DISCOMFORT) {
+                GripMultiPicker(options, selected, { paletteColor(colorIndex(it)) }) { id ->
+                    val next = if (id in selected) selected - id else selected + id
+                    selectedText = next.joinToString(",").ifEmpty { "x" }
                 }
-                ProgressView.HANDS -> {
-                    GripPicker(grips, grip, selectedId == DYNAMOMETER_ID) { selectedId = it }
-                    ChartCard(summary, range, nowMillis, grip)
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        HandCard(summary.of(injury.focusHand), Modifier.weight(1f), injury)
-                        HandCard(summary.of(injury.focusHand.other), Modifier.weight(1f), injury)
-                    }
+            }
+            when (view) {
+                ProgressView.HANDS -> ByHandView(picked, injury)
+                ProgressView.COMPARE -> {
+                    CompareView(picked, injury)
+                    picked.forEach { ComparisonCard(it.summary, injury) }
                 }
                 ProgressView.DISCOMFORT -> DiscomfortView(measurements, range, nowMillis)
             }
@@ -111,7 +122,7 @@ fun ProgressScreen(
     }
 }
 
-private enum class ProgressView(val label: String) { COMPARE("Comparar"), HANDS("Por mano"), DISCOMFORT("Molestias") }
+private enum class ProgressView(val label: String) { HANDS("Por mano"), COMPARE("Comparar"), DISCOMFORT("Molestias") }
 
 /** Id used by the picker for the dynamometer (not a library grip). */
 private const val DYNAMOMETER_ID = -1L

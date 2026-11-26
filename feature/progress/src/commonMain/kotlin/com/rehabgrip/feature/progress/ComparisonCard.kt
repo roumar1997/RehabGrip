@@ -80,7 +80,7 @@ private fun BestColumn(title: String, best: Double?, last: Double?, color: Color
 }
 
 /** Days where both hands were measured: injured as % of healthy. */
-private fun symmetrySeries(s: ProgressSummary, focus: com.rehabgrip.core.domain.model.Hand): List<DayPoint> {
+internal fun symmetrySeries(s: ProgressSummary, focus: com.rehabgrip.core.domain.model.Hand): List<DayPoint> {
     val other = s.of(focus.other).points.associateBy { it.date }
     return s.of(focus).points.mapNotNull { p ->
         other[p.date]?.takeIf { it.kg > 0 }?.let { DayPoint(p.date, p.kg / it.kg * 100.0) }

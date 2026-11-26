@@ -28,7 +28,7 @@ import kotlin.math.ceil
 import kotlin.math.max
 
 /** One line of a [LineChart]. x in 0..1 (time fraction), y in kg. */
-data class ChartSeries(val color: Color, val points: List<Pair<Float, Float>>)
+data class ChartSeries(val color: Color, val points: List<Pair<Float, Float>>, val dashed: Boolean = false)
 
 internal val axisStyle = TextStyle(color = RgColors.TextSecondary, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
 
@@ -36,12 +36,12 @@ private fun niceMax(value: Float, step: Float = 10f) = max(step, ceil(value / st
 
 /** Multi-series progress chart with y grid, x labels and dots. */
 @Composable
-fun LineChart(series: List<ChartSeries>, xLabels: List<String>, modifier: Modifier = Modifier) {
+fun LineChart(series: List<ChartSeries>, xLabels: List<String>, modifier: Modifier = Modifier, referenceY: Float? = null) {
     val measurer = rememberTextMeasurer()
     Canvas(modifier) {
         val all = series.flatMap { it.points }
-        val yMax = niceMax((all.maxOfOrNull { it.second } ?: 10f) * 1.1f)
-        val yMin = max(0f, (all.minOfOrNull { it.second } ?: 0f) * 0.8f).let { (it / 10).toInt() * 10f }
+        val yMax = niceMax(max(all.maxOfOrNull { it.second } ?: 10f, referenceY ?: 0f) * 1.1f)
+        val yMin = max(0f, minOf(all.minOfOrNull { it.second } ?: 0f, referenceY ?: Float.MAX_VALUE) * 0.8f).let { (it / 10).toInt() * 10f }
         val left = 40.dp2px(this)
         val bottom = size.height - 22.dp2px(this)
         val top = 8.dp2px(this)
@@ -56,13 +56,19 @@ fun LineChart(series: List<ChartSeries>, xLabels: List<String>, modifier: Modifi
             val tx = (x(f) - layout.size.width / 2f).coerceIn(0f, size.width - layout.size.width)
             drawText(layout, topLeft = Offset(tx, bottom + 4.dp2px(this)))
         }
+        referenceY?.let { r ->
+            drawLine(RgColors.Navy.copy(alpha = 0.55f), Offset(left, y(r)), Offset(right, y(r)), 2.dp2px(this), pathEffect = PathEffect.dashPathEffect(floatArrayOf(6f, 8f)))
+        }
         series.forEach { s ->
             if (s.points.isEmpty()) return@forEach
             val path = Path()
             s.points.forEachIndexed { i, (fx, v) ->
                 if (i == 0) path.moveTo(x(fx), y(v)) else path.lineTo(x(fx), y(v))
             }
-            drawPath(path, s.color, style = Stroke(3.dp2px(this), cap = StrokeCap.Round, join = StrokeJoin.Round))
+            drawPath(
+                path, s.color,
+                style = Stroke(3.dp2px(this), cap = StrokeCap.Round, join = StrokeJoin.Round, pathEffect = if (s.dashed) PathEffect.dashPathEffect(floatArrayOf(16f, 12f)) else null),
+            )
             s.points.forEach { (fx, v) ->
                 drawCircle(Color.White, 5.dp2px(this), Offset(x(fx), y(v)))
                 drawCircle(s.color, 3.5f.dp2px(this), Offset(x(fx), y(v)))
