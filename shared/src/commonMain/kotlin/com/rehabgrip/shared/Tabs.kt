@@ -39,6 +39,7 @@ internal fun TabContent(tab: Tab, container: AppContainer, navigator: Navigator,
                 navigator.push(Route.WorkoutEditor(WorkoutTemplate(name = "", sets = listOf(WorkoutSet(reps = 6, workSeconds = 10, restSeconds = 20)))))
             },
             onEdit = { navigator.push(Route.WorkoutEditor(it)) },
+            onDelete = { t -> scope.launch { container.workouts.delete(t.id) } },
             missingBases = { t -> GripRecords.missingBases(t) { hand, grip -> data.record(hand, grip)?.kg } },
             onEvaluateGrips = { navigator.push(Route.GripLibrary) },
             onEvaluate = { navigator.push(Route.GripEvaluate(it)) },
@@ -54,6 +55,7 @@ internal fun TabContent(tab: Tab, container: AppContainer, navigator: Navigator,
             onExport = container::export,
             onDelete = { id -> scope.launch { container.measurements.delete(id) } },
             workouts = data.workoutResults,
+            onDeleteWorkout = { at -> scope.launch { container.workoutResults.delete(at) } },
             grips = data.grips,
         )
         Tab.PROFILE -> ProfileTab(container, navigator, session, data)

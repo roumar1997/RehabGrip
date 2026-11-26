@@ -94,6 +94,7 @@ fun WorkoutEditorScreen(
     var configRow by remember { mutableStateOf<Int?>(null) }
     var massEdit by remember { mutableStateOf(false) }
     var evaluating by remember { mutableStateOf<GripSpec?>(null) }
+    var confirmDelete by remember { mutableStateOf(false) }
 
     val draft = initial.copy(name = name, sets = rows.map { it.set }, handMode = handMode, firstHand = firstHand)
     evaluating?.let { grip ->
@@ -119,7 +120,7 @@ fun WorkoutEditorScreen(
     }
     Column(Modifier.fillMaxSize()) {
         RgTopBar(if (initial.id == 0L) "Nueva sesión" else "Editar sesión", onBack = onBack) {
-            if (onDelete != null) IconButton(onClick = onDelete) { Icon(Icons.Outlined.DeleteOutline, "Borrar sesión", tint = RgColors.TextSecondary) }
+            if (onDelete != null) IconButton(onClick = { confirmDelete = true }) { Icon(Icons.Outlined.DeleteOutline, "Borrar sesión", tint = RgColors.TextSecondary) }
         }
         Column(
             Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp),
@@ -171,6 +172,16 @@ fun WorkoutEditorScreen(
                 modifier = Modifier.padding(top = 8.dp),
             )
         }
+    }
+    if (confirmDelete && onDelete != null) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { confirmDelete = false },
+            containerColor = RgColors.Background,
+            title = { Text("¿Borrar esta sesión?") },
+            text = { Text("«${name.ifBlank { "Sin nombre" }}» desaparece de Entrenos. No se puede deshacer.") },
+            confirmButton = { TextButton(onClick = { confirmDelete = false; onDelete() }) { Text("Borrar", color = RgColors.Danger) } },
+            dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("Cancelar") } },
+        )
     }
     editRow?.let { id ->
         val idx = rows.indexOfFirst { it.id == id }

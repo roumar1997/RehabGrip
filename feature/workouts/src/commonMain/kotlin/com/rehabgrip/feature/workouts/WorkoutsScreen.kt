@@ -41,6 +41,7 @@ import com.rehabgrip.core.domain.grip.MissingBase
 import com.rehabgrip.core.domain.workout.GripSpec
 import com.rehabgrip.core.domain.workout.WorkoutTemplate
 import androidx.compose.material.icons.rounded.Speed
+import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.getValue
@@ -60,7 +61,9 @@ fun WorkoutsScreen(
     onEvaluateGrips: () -> Unit,
     onEvaluate: (GripSpec) -> Unit,
     onMeter: () -> Unit = {},
+    onDelete: (WorkoutTemplate) -> Unit = {},
 ) {
+    var deleting by remember { mutableStateOf<WorkoutTemplate?>(null) }
     var asking by remember { mutableStateOf<Pair<WorkoutTemplate, List<MissingBase>>?>(null) }
     Column(Modifier.fillMaxSize()) {
         RgTopBar("Entrenamientos", leadingIcon = Icons.Rounded.Timer)
@@ -95,6 +98,7 @@ fun WorkoutsScreen(
                             Text("Duración estimada: ${WorkoutLabels.estimate(t)}", style = MaterialTheme.typography.bodySmall, color = RgColors.TextSecondary)
                         }
                         IconButton(onClick = { onEdit(t) }) { Icon(Icons.Rounded.Edit, "Editar", tint = RgColors.TextSecondary) }
+                        IconButton(onClick = { deleting = t }) { Icon(Icons.Outlined.DeleteOutline, "Borrar", tint = RgColors.TextSecondary) }
                         Box(
                             Modifier.size(48.dp).clip(CircleShape).background(RgColors.Primary),
                             contentAlignment = Alignment.Center,
@@ -107,6 +111,16 @@ fun WorkoutsScreen(
             }
         }
         RgPrimaryButton("Nueva sesión", onNew, Modifier.padding(16.dp), icon = Icons.Rounded.Add)
+    }
+    deleting?.let { t ->
+        AlertDialog(
+            onDismissRequest = { deleting = null },
+            containerColor = RgColors.Background,
+            title = { Text("¿Borrar «${t.name}»?") },
+            text = { Text("La sesión desaparece de Entrenos. Los entrenamientos ya hechos siguen en el historial.") },
+            confirmButton = { TextButton(onClick = { onDelete(t); deleting = null }) { Text("Borrar", color = RgColors.Danger) } },
+            dismissButton = { TextButton(onClick = { deleting = null }) { Text("Cancelar") } },
+        )
     }
     asking?.let { (template, missing) ->
         AlertDialog(

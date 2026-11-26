@@ -6,7 +6,17 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.DeleteOutline
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -23,7 +33,8 @@ import kotlinx.datetime.toLocalDateTime
 
 /** Guided sessions: max, average while pulling and % in zone per hand. */
 @Composable
-internal fun WorkoutResultsList(entries: List<WorkoutResultEntry>, modifier: Modifier = Modifier) {
+internal fun WorkoutResultsList(entries: List<WorkoutResultEntry>, onDelete: (Long) -> Unit, modifier: Modifier = Modifier) {
+    var deleting by remember { mutableStateOf<WorkoutResultEntry?>(null) }
     LazyColumn(modifier, contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         if (entries.isEmpty()) {
             item { Text("Aún no has hecho ningún entrenamiento guiado", color = RgColors.TextSecondary, style = MaterialTheme.typography.bodyMedium) }
@@ -31,7 +42,10 @@ internal fun WorkoutResultsList(entries: List<WorkoutResultEntry>, modifier: Mod
         items(entries, key = { it.epochMillis }) { e ->
             val dt = Instant.fromEpochMilliseconds(e.epochMillis).toLocalDateTime(TimeZone.currentSystemDefault())
             RgCard(Modifier.fillMaxWidth()) {
-                Text(e.name, style = MaterialTheme.typography.titleMedium, color = RgColors.Navy)
+                Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                    Text(e.name, style = MaterialTheme.typography.titleMedium, color = RgColors.Navy, modifier = Modifier.weight(1f))
+                    IconButton(onClick = { deleting = e }) { Icon(Icons.Outlined.DeleteOutline, "Borrar entrenamiento", tint = RgColors.TextSecondary) }
+                }
                 Text(
                     "${dt.dayOfMonth}/${dt.monthNumber}/${dt.year} · ${dt.hour.toString().padStart(2, '0')}:${dt.minute.toString().padStart(2, '0')}",
                     style = MaterialTheme.typography.bodySmall, color = RgColors.TextSecondary,
@@ -48,5 +62,14 @@ internal fun WorkoutResultsList(entries: List<WorkoutResultEntry>, modifier: Mod
                 }
             }
         }
+    }
+    deleting?.let { e ->
+        AlertDialog(
+            onDismissRequest = { deleting = null },
+            title = { Text("¿Borrar este entrenamiento?") },
+            text = { Text("«${e.name}» desaparece del historial. No se puede deshacer.") },
+            confirmButton = { TextButton(onClick = { onDelete(e.epochMillis); deleting = null }) { Text("Borrar", color = RgColors.Danger) } },
+            dismissButton = { TextButton(onClick = { deleting = null }) { Text("Cancelar") } },
+        )
     }
 }

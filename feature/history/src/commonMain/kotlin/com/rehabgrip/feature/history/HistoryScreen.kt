@@ -81,6 +81,7 @@ fun HistoryScreen(
     onExport: (List<Measurement>) -> Unit,
     onDelete: (Long) -> Unit,
     workouts: List<WorkoutResultEntry> = emptyList(),
+    onDeleteWorkout: (Long) -> Unit = {},
     grips: List<GripSpec> = emptyList(),
 ) {
     fun nameOf(m: Measurement) = m.gripId?.let { id -> grips.firstOrNull { it.id == id } }?.label ?: Labels.exercise(m.exercise)
@@ -106,7 +107,7 @@ fun HistoryScreen(
             Modifier.padding(horizontal = 16.dp).padding(bottom = 8.dp), colorFor = { RgColors.Navy },
         )
         if (showWorkouts) {
-            WorkoutResultsList(workouts, Modifier.weight(1f))
+            WorkoutResultsList(workouts, onDeleteWorkout, Modifier.weight(1f))
             return@Column
         }
         if (showFilters) {
